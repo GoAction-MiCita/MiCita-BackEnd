@@ -1,0 +1,13 @@
+target/
+.git/
+.idea/
+.vscode/
+.claude/
+*.iml
+.mvn/wrapper/maven-wrapper.jar
+Dockerfile
+.dockerignore
+CLAUDE.md
+HELP.md
+.env
+docker-compose.yml
