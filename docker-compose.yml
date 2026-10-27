@@ -1,5 +1,8 @@
-# Local stack: PostgreSQL + the API built from the Dockerfile.
-# Usage: copy .env.example to .env, fill in the secrets, then `docker compose up --build`.
+# Local stack: PostgreSQL + the API.
+# Usage: copy .env.example to .env and fill in the secrets, then:
+#   docker compose up           # uses the published image (pulled if it isn't local)
+#   docker compose pull --policy always   # fetches the latest push of that tag
+#   docker compose up --build   # builds the image from the Dockerfile instead
 services:
   db:
     image: postgres:17-alpine
@@ -19,8 +22,10 @@ services:
       retries: 10
 
   api:
+    # Published image on Docker Hub. Set API_IMAGE in .env to run another tag.
+    image: ${API_IMAGE:-goactionhub/mi-cita-backend:v1.0-test}
+    pull_policy: missing
     build: .
-    image: micita-backend:local
     restart: unless-stopped
     depends_on:
       db:
@@ -37,6 +42,9 @@ services:
       # There are no schema migrations yet and prod only validates the schema,
       # so the local stack lets Hibernate create the tables.
       SPRING_JPA_HIBERNATE_DDL_AUTO: ${DDL_AUTO:-update}
+      # prod disables Swagger; SWAGGER_ENABLED turns it back on for the local stack.
+      SPRINGDOC_API_DOCS_ENABLED: ${SWAGGER_ENABLED:-false}
+      SPRINGDOC_SWAGGER_UI_ENABLED: ${SWAGGER_ENABLED:-false}
     ports:
       - "${API_PORT:-8080}:8080"
 
