@@ -44,11 +44,12 @@ class JwtTokenIssuerTest {
 	}
 
 	@Test
-	void issuedTokenCarriesSubjectPrefixedRolesIssuerAndExpiration() {
+	void issuedTokenCarriesSubjectUserIdPrefixedRolesIssuerAndExpiration() {
 		IssuedToken token = tokenIssuer.issue(user, false);
 
 		Jwt jwt = jwtDecoder.decode(token.value());
 		assertThat(jwt.getSubject()).isEqualTo("ana");
+		assertThat(jwt.getClaimAsString(SecurityConfig.USER_ID_CLAIM)).isEqualTo(user.userId().toString());
 		assertThat(jwt.getClaimAsStringList(SecurityConfig.ROLES_CLAIM)).containsExactly("ROLE_ADMIN");
 		assertThat(jwt.getClaimAsString("iss")).isEqualTo("micita");
 		assertThat(Duration.between(jwt.getIssuedAt(), jwt.getExpiresAt())).isEqualTo(Duration.ofMinutes(15));

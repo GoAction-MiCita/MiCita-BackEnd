@@ -23,6 +23,7 @@ import com.micita.micita_project.core.auth.application.ports.in.RegisterUserUseC
 import com.micita.micita_project.core.auth.domain.exceptions.DuplicateUserException;
 import com.micita.micita_project.core.auth.domain.exceptions.InvalidCredentialsException;
 import com.micita.micita_project.core.auth.domain.exceptions.InvalidRefreshTokenException;
+import com.micita.micita_project.core.business.application.ports.in.BusinessOwnershipQueryUseCase;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -59,6 +60,10 @@ class AuthControllerTest {
 	// SecurityConfig's AuthenticationManager needs one; the JPA implementation is outside the slice.
 	@MockitoBean
 	private UserDetailsService userDetailsService;
+
+	// The HU-04 interceptor is part of the web slice; /api/auth/** is exempt from it.
+	@MockitoBean
+	private BusinessOwnershipQueryUseCase businessOwnershipQuery;
 
 	@Test
 	void registerReturnsCreatedUserWithoutPassword() throws Exception {

@@ -39,6 +39,9 @@ public class SecurityConfig {
 
 	public static final String ROLES_CLAIM = "roles";
 
+	/** The user's id (UUID). {@code sub} holds the username. */
+	public static final String USER_ID_CLAIM = "uid";
+
 	/** Tells the frontend whether to send the user to business onboarding. */
 	public static final String HAS_BUSINESS_CLAIM = "hasBusiness";
 

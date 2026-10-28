@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project state
 
-MiCita backend: the Spring Boot REST API for an appointment-booking product. Cross-cutting infrastructure is in place: hexagonal package layout, JWT login, error handling, Swagger, profiles, and test/coverage tooling.
+MiCita backend: the Spring Boot REST API for an appointment-booking product. Cross-cutting infrastructure is in place: hexagonal package layout, JWT login, error handling, Swagger, profiles, and test/coverage tooling. Implemented modules: `auth` (HU-01, HU-02) and `business` (onboarding, HU-03/HU-04).
 
 
 ## Stack
@@ -126,7 +126,15 @@ Implemented today:
 - The bootstrap user (`micita.security.bootstrap-user.*`) is seeded at startup with the ADMIN role if its username doesn't exist yet. It's the only admin until role management exists.
 - Stateless HS256 JWTs signed by the app (`JwtTokenIssuer`) and validated by the resource server.
   - Roles go in the `roles` claim with the `ROLE_` prefix applied by the issuer, so `hasRole(...)` and `@PreAuthorize` work as usual. `@EnableMethodSecurity` is on, and a denied `@PreAuthorize` returns a 403 `ProblemDetail`.
-  - The `hasBusiness` claim comes from `BusinessQueryPort`. Its only adapter today, `PendingBusinessQueryAdapter`, always returns `false`. Replace it when the businesses module exists.
+  - `sub` holds the username and the `uid` claim holds the user's UUID. Read it with `CurrentUserId.from(jwt)`, which gives 401 if it's missing. Anything owned by the user (such as the business) is resolved from it, never from a request parameter.
+  - The `hasBusiness` claim comes from `BusinessQueryPort`. `BusinessModuleQueryAdapter` answers it through the business module's `BusinessOwnershipQueryUseCase`, so it reflects PostgreSQL at login and refresh.
+- Business onboarding (HU-03). `POST /api/negocios/onboarding` (authenticated) creates the caller's business in `businesses`: `ACTIVE`, time zone `America/Bogota`, one per user (`owner_id` unique, so a second one or a race gives 409 `BusinessAlreadyExistsException`).
+  - The current access token keeps `hasBusiness=false`: the frontend calls `POST /api/auth/refresh` after onboarding to get one with `true`.
+- Business required (HU-04). `BusinessRequiredInterceptor`, registered by `BusinessRequiredWebConfig` on `/api/**`, answers 403 `ProblemDetail` with `code: "BUSINESS_REQUIRED"` (`ForbiddenException`) when a JWT-authenticated user has no business.
+  - It is on by default, so new endpoints are covered. Exempt: `/api/auth/**` and `/api/negocios/onboarding` (`EXEMPT_PATTERNS`). Anonymous requests to public endpoints pass through.
+  - Ownership is read from PostgreSQL on every request, not from the `hasBusiness` claim, so access opens right after onboarding.
+  - `BusinessRequiredOpenApiCustomizer` adds that 403 to every secured, non-exempt operation in Swagger.
+  - The bootstrap ADMIN is not exempt: it also needs a business to use protected endpoints.
 - Sessions (HU-02). Access tokens last 15 min (`JWT_EXPIRATION`) and refresh tokens 7 days (`JWT_REFRESH_EXPIRATION`).
   - Login, and every refresh, goes through `SessionTokensIssuer`, which issues an access token plus an opaque refresh token (256 random bits).
   - Only the token's SHA-256 is stored, in `refresh_tokens`. It's looked up by that hash, so it is deliberately not BCrypt.
@@ -171,7 +179,7 @@ The Firestore document model and composite indexes are in ADR-001. Still open th
 - `application-prod.properties` reads everything from environment variables with no fallbacks, uses `ddl-auto=validate` and disables Swagger.
 - `src/test/resources/application-test.properties` is for tests.
 - Environment variables: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET` (≥ 32 bytes, enforced at startup by `JwtProperties`), `JWT_EXPIRATION` (access token, default `15m`), `JWT_REFRESH_EXPIRATION` (refresh token: required in prod, `7d` in dev), `BOOTSTRAP_USERNAME`, `BOOTSTRAP_PASSWORD`.
-- There are no schema migrations yet, so prod's `validate` needs the schema (`users`, `user_roles`, `refresh_tokens`) to already exist.
+- There are no schema migrations yet, so prod's `validate` needs the schema (`users`, `user_roles`, `refresh_tokens`, `businesses`) to already exist.
 
 ## Testing (JUnit + Mockito)
 
@@ -182,7 +190,8 @@ Every user story ships with tests derived from its acceptance criteria. JUnit Ju
 - **Controllers:** `@WebMvcTest(XController.class)` + `@Import(SecurityConfig.class)` + `@ActiveProfiles("test")`, with the `ports.in` use case mocked through `@MockitoBean`.
   - `@MockBean` was removed in Boot 4, so don't use it.
   - `@WebMvcTest` now lives in `org.springframework.boot.webmvc.test.autoconfigure`.
-  - Use `SecurityMockMvcRequestPostProcessors.jwt()` for authenticated requests.
+  - Use `SecurityMockMvcRequestPostProcessors.jwt()` for authenticated requests, adding the `uid` claim (`jwt().jwt(token -> token.claim(SecurityConfig.USER_ID_CLAIM, id))`) when the endpoint needs the user id or is guarded by the HU-04 interceptor.
+  - The HU-04 interceptor is part of every web slice, so also mock `BusinessOwnershipQueryUseCase` with `@MockitoBean` (stub it to `true` unless the test is about onboarding). `BusinessProbeController` and `AdminProbeController` are test-only private endpoints.
 - **Integration (`@SpringBootTest`):** use `@Import(TestcontainersConfiguration.class)` (PostgreSQL through `@ServiceConnection`) and `@Testcontainers(disabledWithoutDocker = true)`, so these tests are skipped rather than failed when Docker isn't running.
   - Testcontainers is 2.x, so container classes live in module packages (`org.testcontainers.postgresql.PostgreSQLContainer`).
   - ADR-001 calls for running Firestore adapters against the **Firestore emulator** once they exist.

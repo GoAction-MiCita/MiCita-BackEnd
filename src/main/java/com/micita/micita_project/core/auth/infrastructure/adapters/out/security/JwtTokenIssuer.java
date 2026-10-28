@@ -45,6 +45,7 @@ public class JwtTokenIssuer implements TokenIssuerPort {
 			.issuedAt(now)
 			.expiresAt(now.plus(jwtProperties.expiration()))
 			.subject(user.username())
+			.claim(SecurityConfig.USER_ID_CLAIM, user.userId().toString())
 			.claim(SecurityConfig.ROLES_CLAIM, user.roles().stream().map(SecurityConfig.ROLE_PREFIX::concat).toList())
 			.claim(SecurityConfig.HAS_BUSINESS_CLAIM, hasBusiness)
 			.build();

@@ -1,5 +1,7 @@
 package com.micita.micita_project.common.shared.security;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -11,6 +13,8 @@ import java.util.UUID;
 
 import com.micita.micita_project.core.auth.domain.models.AuthenticatedUser;
 import com.micita.micita_project.core.auth.infrastructure.adapters.out.security.JwtTokenIssuer;
+import com.micita.micita_project.core.business.application.ports.in.BusinessOwnershipQueryUseCase;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,6 +50,15 @@ class SecurityConfigAccessTest {
 	@MockitoBean
 	private UserDetailsService userDetailsService;
 
+	// Everyone owns a business here, so only authentication and roles are under test (HU-04 has its own).
+	@MockitoBean
+	private BusinessOwnershipQueryUseCase businessOwnershipQuery;
+
+	@BeforeEach
+	void everyoneOwnsABusiness() {
+		given(businessOwnershipQuery.ownsBusiness(any())).willReturn(true);
+	}
+
 	@Test
 	void privateResourceWithoutTokenIsUnauthorized() throws Exception {
 		mockMvc.perform(get(AdminProbeController.PATH))
@@ -61,14 +74,17 @@ class SecurityConfigAccessTest {
 
 	@Test
 	void privateResourceWithoutRequiredRoleIsForbidden() throws Exception {
-		mockMvc.perform(get(AdminProbeController.PATH).with(jwt()))
+		mockMvc.perform(get(AdminProbeController.PATH).with(jwt().jwt(token -> token.claim(SecurityConfig.USER_ID_CLAIM,
+				UUID.randomUUID().toString()))))
 			.andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.status").value(403));
 	}
 
 	@Test
 	void privateResourceWithRequiredRoleIsAllowed() throws Exception {
-		mockMvc.perform(get(AdminProbeController.PATH).with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+		mockMvc.perform(get(AdminProbeController.PATH).with(jwt()
+			.jwt(token -> token.claim(SecurityConfig.USER_ID_CLAIM, UUID.randomUUID().toString()))
+			.authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
 			.andExpect(status().isOk());
 	}
 

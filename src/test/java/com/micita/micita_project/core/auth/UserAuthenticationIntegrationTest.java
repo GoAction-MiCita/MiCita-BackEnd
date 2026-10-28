@@ -14,6 +14,8 @@ import com.micita.micita_project.core.auth.application.ports.out.RefreshTokenGen
 import com.micita.micita_project.core.auth.infrastructure.adapters.out.persistence.jpa.entities.RefreshTokenEntity;
 import com.micita.micita_project.core.auth.infrastructure.adapters.out.persistence.jpa.repositories.RefreshTokenJpaRepository;
 import com.micita.micita_project.core.auth.infrastructure.adapters.out.persistence.jpa.repositories.UserJpaRepository;
+import com.micita.micita_project.core.business.infrastructure.adapters.out.persistence.jpa.repositories.BusinessJpaRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -56,6 +58,16 @@ class UserAuthenticationIntegrationTest {
 	@Autowired
 	private JwtDecoder jwtDecoder;
 
+	@Autowired
+	private BusinessJpaRepository businessJpaRepository;
+
+	// The bootstrap admin starts without a business in every test; the ones that reach a private
+	// resource onboard it first (HU-04).
+	@BeforeEach
+	void removeBusinesses() {
+		businessJpaRepository.deleteAll();
+	}
+
 	@Test
 	void loginReturnsTokensWithHasBusinessAndStoresOnlyTheRefreshHash() throws Exception {
 		String body = login(ADMIN_CREDENTIALS).andExpect(status().isOk())
@@ -96,6 +108,7 @@ class UserAuthenticationIntegrationTest {
 		String newRefresh = JsonPath.read(refreshed, "$.refreshToken");
 
 		assertThat(newRefresh).isNotEqualTo(oldRefresh);
+		onboard(newAccess);
 		mockMvc.perform(get(AdminProbeController.PATH).header(HttpHeaders.AUTHORIZATION, "Bearer " + newAccess))
 			.andExpect(status().isOk());
 		refresh(oldRefresh).andExpect(status().isUnauthorized());
@@ -128,6 +141,7 @@ class UserAuthenticationIntegrationTest {
 			.andExpect(status().isUnauthorized());
 
 		String adminAccess = JsonPath.read(loginBody(), "$.accessToken");
+		onboard(adminAccess);
 		mockMvc.perform(get(AdminProbeController.PATH).header(HttpHeaders.AUTHORIZATION, "Bearer " + adminAccess))
 			.andExpect(status().isOk());
 
@@ -147,6 +161,13 @@ class UserAuthenticationIntegrationTest {
 
 	private String loginBody() throws Exception {
 		return login(ADMIN_CREDENTIALS).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+	}
+
+	private void onboard(String accessToken) throws Exception {
+		mockMvc.perform(post("/api/negocios/onboarding").header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("{\"name\":\"Admin Shop\",\"address\":\"Calle 1\",\"phone\":\"+573001112233\"}"))
+			.andExpect(status().isCreated());
 	}
 
 	private ResultActions refresh(String refreshToken) throws Exception {

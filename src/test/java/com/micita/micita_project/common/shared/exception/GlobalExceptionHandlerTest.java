@@ -30,6 +30,15 @@ class GlobalExceptionHandlerTest {
 	}
 
 	@Test
+	void forbiddenMapsTo403WithCode() {
+		ProblemDetail problem = handler.handleForbidden(new ForbiddenException("BUSINESS_REQUIRED", "Register first"));
+
+		assertThat(problem.getStatus()).isEqualTo(403);
+		assertThat(problem.getDetail()).isEqualTo("Register first");
+		assertThat(problem.getProperties()).containsEntry("code", "BUSINESS_REQUIRED");
+	}
+
+	@Test
 	void accessDeniedMapsTo403() {
 		ProblemDetail problem = handler.handleAccessDenied(new AccessDeniedException("nope"));
 
