@@ -2,6 +2,10 @@ package com.micita.micita_project.common.shared.exception;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
 import com.micita.micita_project.common.shared.exception.ConflictException;
 import com.micita.micita_project.common.shared.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.Test;
@@ -19,6 +23,17 @@ class GlobalExceptionHandlerTest {
 
 		assertThat(problem.getStatus()).isEqualTo(404);
 		assertThat(problem.getDetail()).isEqualTo("Servicio 7 no existe");
+	}
+
+	@Test
+	void invalidReferencesMapTo400WithFieldErrorAndRejectedIds() {
+		UUID rejected = UUID.fromString("5c2d8e4f-1a3b-4c5d-9e6f-7a8b9c0d1e2f");
+
+		ProblemDetail problem = handler.handleInvalidReferences(new InvalidReferencesException("serviceIds", List.of(rejected)));
+
+		assertThat(problem.getStatus()).isEqualTo(400);
+		assertThat(problem.getProperties()).containsEntry("rejectedIds", List.of(rejected))
+			.containsEntry("errors", Map.of("serviceIds", "unknown or unavailable ids: [" + rejected + "]"));
 	}
 
 	@Test

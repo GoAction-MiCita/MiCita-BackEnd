@@ -23,7 +23,7 @@ services:
 
   api:
     # Published image on Docker Hub. Set API_IMAGE in .env to run another tag.
-    image: ${API_IMAGE:-goactionhub/mi-cita-backend:v1.0.1-test
+    image: ${API_IMAGE:-goactionhub/mi-cita-backend:v1.0.1-test}
     pull_policy: missing
     build: .
     restart: unless-stopped

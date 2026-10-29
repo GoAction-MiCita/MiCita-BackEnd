@@ -1,5 +1,6 @@
 package com.micita.micita_project.core.business.infrastructure.adapters.out.persistence.jpa.query;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import com.micita.micita_project.core.business.application.ports.out.query.BusinessQueryRepositoryPort;
@@ -19,6 +20,11 @@ public class BusinessQueryJpaAdapter implements BusinessQueryRepositoryPort {
 	@Override
 	public boolean existsByOwnerId(UUID ownerId) {
 		return businessJpaRepository.existsByOwnerId(ownerId);
+	}
+
+	@Override
+	public Optional<UUID> findIdByOwnerId(UUID ownerId) {
+		return businessJpaRepository.findIdByOwnerId(ownerId);
 	}
 
 }

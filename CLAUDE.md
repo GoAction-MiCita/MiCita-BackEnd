@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project state
 
-MiCita backend: the Spring Boot REST API for an appointment-booking product. Cross-cutting infrastructure is in place: hexagonal package layout, JWT login, error handling, Swagger, profiles, and test/coverage tooling. Implemented modules: `auth` (HU-01, HU-02) and `business` (onboarding, HU-03/HU-04).
+MiCita backend: the Spring Boot REST API for an appointment-booking product. Cross-cutting infrastructure is in place: hexagonal package layout, JWT login, error handling, Swagger, profiles, and test/coverage tooling. Implemented modules: `auth` (HU-01, HU-02), `business` (onboarding, HU-03/HU-04) and `employee` (registration, HU-17). `service` so far only has the `services` table and the `service_employees` association (ADR-002); its endpoints (HU-09, HU-12) are pending.
 
 
 ## Stack
@@ -88,7 +88,7 @@ common/shared/                             # Transversal, fuera de core
 
   | Code | When |
   |---|---|
-  | 400 | Validation failure. The `ProblemDetail` carries an `errors` map of field → message. |
+  | 400 | Validation failure. The `ProblemDetail` carries an `errors` map of field → message. Ids that are unknown, of another business or deleted (`InvalidReferencesException`) also add `rejectedIds`. |
   | 401 | Bad credentials, or a missing/expired token. |
   | 403 | The caller lacks permission. |
   | 404 | The resource doesn't exist. |
@@ -135,6 +135,11 @@ Implemented today:
   - Ownership is read from PostgreSQL on every request, not from the `hasBusiness` claim, so access opens right after onboarding.
   - `BusinessRequiredOpenApiCustomizer` adds that 403 to every secured, non-exempt operation in Swagger.
   - The bootstrap ADMIN is not exempt: it also needs a business to use protected endpoints.
+  - Modules that scope data by business get its id from `BusinessOwnershipQueryUseCase.requireBusinessIdOf(uid)` (403 `BUSINESS_REQUIRED` if there is none).
+- Employees (HU-17). `POST /api/empleados` creates an employee in the caller's business (`employees`, `ACTIVE`/`INACTIVE`; `DELETED` is the soft delete).
+  - Email (stored lowercased) and phone must not be used by another non-deleted employee of the business (409 `DuplicateEmployeeException`). The check lives in the use case: the partial unique indexes wait for migrations, so two concurrent requests can still slip through.
+  - `serviceIds` are written to `service_employees` only through the service module's `AssignEmployeeServicesUseCase` (ADR-002), in the same transaction. Unknown, foreign or deleted services give 400 with `rejectedIds` and nothing is stored.
+  - `EmployeeQueryUseCase.findAssignableIds` is the port the service module will use to validate `employeeIds` (HU-12).
 - Sessions (HU-02). Access tokens last 15 min (`JWT_EXPIRATION`) and refresh tokens 7 days (`JWT_REFRESH_EXPIRATION`).
   - Login, and every refresh, goes through `SessionTokensIssuer`, which issues an access token plus an opaque refresh token (256 random bits).
   - Only the token's SHA-256 is stored, in `refresh_tokens`. It's looked up by that hash, so it is deliberately not BCrypt.
@@ -149,7 +154,7 @@ Still missing:
 
 ## Persistence: ADR-001 (hybrid)
 
-PostgreSQL holds users, refresh tokens, businesses, services, employees, `employee_service`, schedules, breaks, non-working days, minimum notice, WhatsApp conversations and `processed_message`, all accessed through JPA. **Appointments** and the per-employee-per-day lock documents live in **Cloud Firestore**, accessed through the Admin SDK behind `AppointmentRepositoryPort` / `FirestoreAppointmentAdapter`.
+PostgreSQL holds users, refresh tokens, businesses, services, employees, `service_employees` (owned by the service module, ADR-002), schedules, breaks, non-working days, minimum notice, WhatsApp conversations and `processed_message`, all accessed through JPA. **Appointments** and the per-employee-per-day lock documents live in **Cloud Firestore**, accessed through the Admin SDK behind `AppointmentRepositoryPort` / `FirestoreAppointmentAdapter`.
 
 Rules that cut across modules:
 
@@ -179,7 +184,7 @@ The Firestore document model and composite indexes are in ADR-001. Still open th
 - `application-prod.properties` reads everything from environment variables with no fallbacks, uses `ddl-auto=validate` and disables Swagger.
 - `src/test/resources/application-test.properties` is for tests.
 - Environment variables: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET` (≥ 32 bytes, enforced at startup by `JwtProperties`), `JWT_EXPIRATION` (access token, default `15m`), `JWT_REFRESH_EXPIRATION` (refresh token: required in prod, `7d` in dev), `BOOTSTRAP_USERNAME`, `BOOTSTRAP_PASSWORD`.
-- There are no schema migrations yet, so prod's `validate` needs the schema (`users`, `user_roles`, `refresh_tokens`, `businesses`) to already exist.
+- There are no schema migrations yet, so prod's `validate` needs the schema (`users`, `user_roles`, `refresh_tokens`, `businesses`, `services`, `service_employees`, `employees`) to already exist.
 
 ## Testing (JUnit + Mockito)
 

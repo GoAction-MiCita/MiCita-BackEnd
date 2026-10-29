@@ -43,6 +43,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		return handleExceptionInternal(ex, problem, headers, status, request);
 	}
 
+	@ExceptionHandler(InvalidReferencesException.class)
+	ProblemDetail handleInvalidReferences(InvalidReferencesException ex) {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+		problem.setProperty("errors", Map.of(ex.getField(), "unknown or unavailable ids: " + ex.getRejectedIds()));
+		problem.setProperty("rejectedIds", ex.getRejectedIds());
+		return problem;
+	}
+
 	@ExceptionHandler(ResourceNotFoundException.class)
 	ProblemDetail handleResourceNotFound(ResourceNotFoundException ex) {
 		return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());

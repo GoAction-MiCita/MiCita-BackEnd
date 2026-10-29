@@ -3,6 +3,7 @@ package com.micita.micita_project.core.business.infrastructure.adapters.out.pers
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import com.micita.micita_project.core.business.infrastructure.adapters.out.persistence.jpa.repositories.BusinessJpaRepository;
@@ -28,6 +29,15 @@ class BusinessQueryJpaAdapterTest {
 
 		assertThat(adapter.existsByOwnerId(ownerId)).isTrue();
 		assertThat(adapter.existsByOwnerId(UUID.randomUUID())).isFalse();
+	}
+
+	@Test
+	void findIdByOwnerIdDelegatesToRepository() {
+		UUID ownerId = UUID.randomUUID();
+		UUID businessId = UUID.randomUUID();
+		given(businessJpaRepository.findIdByOwnerId(ownerId)).willReturn(Optional.of(businessId));
+
+		assertThat(adapter.findIdByOwnerId(ownerId)).contains(businessId);
 	}
 
 }
