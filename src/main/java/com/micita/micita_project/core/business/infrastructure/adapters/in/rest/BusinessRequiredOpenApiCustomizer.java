@@ -22,7 +22,7 @@ public class BusinessRequiredOpenApiCustomizer implements OpenApiCustomizer {
 	static final String FORBIDDEN = "403";
 
 	static final String DESCRIPTION = "The user has no business yet (code BUSINESS_REQUIRED): complete "
-			+ "POST /api/negocios/onboarding first";
+			+ "POST /api/business/onboarding first";
 
 	private final PathMatcher pathMatcher = new AntPathMatcher();
 

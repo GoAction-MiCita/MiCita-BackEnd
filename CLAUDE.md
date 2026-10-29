@@ -83,7 +83,7 @@ common/shared/                             # Transversal, fuera de core
 
 ## API conventions
 
-- **Routes:** everything lives under `/api`, and resource names are in Spanish, following the sequence diagrams: `/api/auth/login`, `/api/servicios`, `/api/empleados/{id}/horario`, `/api/citas`, `/api/horarios-disponibles`, `/api/mensajes/entrantes`. The diagrams omit the `/api` prefix, so add it when reading them. Java code, DTO field names and error messages stay in English.
+- **Routes:** everything lives under `/api`, and resource names are in English: `/api/auth/login`, `/api/business/onboarding`, `/api/services`, `/api/employees/{id}/schedule`, `/api/appointments`, `/api/available-slots`, `/api/messages/incoming`. Sub-resources follow suit: `/{id}/status`, `/services/{id}/employees`, `/{id}/future-appointments`, `/appointments/{id}/notification`. The sequence diagrams use the same names but omit the `/api` prefix, so add it when reading them. Java code, DTO field names and error messages are in English too.
 - **Status codes used by the flows:**
 
   | Code | When |
@@ -110,7 +110,7 @@ Target flow, from the "Navegación general del administrador" sequence diagram a
   - The password needs at least 6 characters with lowercase, uppercase and special characters.
   - New users start with **no roles**.
 - `POST /api/auth/login` returns a short-lived **access token** (JWT) and a **refresh token**. Only a hash of the refresh token is stored in PostgreSQL.
-  - The access token carries `roles`. It must also carry a `hasBusiness` flag: when it's false, the frontend sends the user to `POST /api/negocios/onboarding`.
+  - The access token carries `roles`. It must also carry a `hasBusiness` flag: when it's false, the frontend sends the user to `POST /api/business/onboarding`.
 - `POST /api/auth/refresh` issues a new access token. `POST /api/auth/logout` revokes the refresh token.
 
 Implemented today:
@@ -128,15 +128,15 @@ Implemented today:
   - Roles go in the `roles` claim with the `ROLE_` prefix applied by the issuer, so `hasRole(...)` and `@PreAuthorize` work as usual. `@EnableMethodSecurity` is on, and a denied `@PreAuthorize` returns a 403 `ProblemDetail`.
   - `sub` holds the username and the `uid` claim holds the user's UUID. Read it with `CurrentUserId.from(jwt)`, which gives 401 if it's missing. Anything owned by the user (such as the business) is resolved from it, never from a request parameter.
   - The `hasBusiness` claim comes from `BusinessQueryPort`. `BusinessModuleQueryAdapter` answers it through the business module's `BusinessOwnershipQueryUseCase`, so it reflects PostgreSQL at login and refresh.
-- Business onboarding (HU-03). `POST /api/negocios/onboarding` (authenticated) creates the caller's business in `businesses`: `ACTIVE`, time zone `America/Bogota`, one per user (`owner_id` unique, so a second one or a race gives 409 `BusinessAlreadyExistsException`).
+- Business onboarding (HU-03). `POST /api/business/onboarding` (authenticated) creates the caller's business in `businesses`: `ACTIVE`, time zone `America/Bogota`, one per user (`owner_id` unique, so a second one or a race gives 409 `BusinessAlreadyExistsException`).
   - The current access token keeps `hasBusiness=false`: the frontend calls `POST /api/auth/refresh` after onboarding to get one with `true`.
 - Business required (HU-04). `BusinessRequiredInterceptor`, registered by `BusinessRequiredWebConfig` on `/api/**`, answers 403 `ProblemDetail` with `code: "BUSINESS_REQUIRED"` (`ForbiddenException`) when a JWT-authenticated user has no business.
-  - It is on by default, so new endpoints are covered. Exempt: `/api/auth/**` and `/api/negocios/onboarding` (`EXEMPT_PATTERNS`). Anonymous requests to public endpoints pass through.
+  - It is on by default, so new endpoints are covered. Exempt: `/api/auth/**` and `/api/business/onboarding` (`EXEMPT_PATTERNS`). Anonymous requests to public endpoints pass through.
   - Ownership is read from PostgreSQL on every request, not from the `hasBusiness` claim, so access opens right after onboarding.
   - `BusinessRequiredOpenApiCustomizer` adds that 403 to every secured, non-exempt operation in Swagger.
   - The bootstrap ADMIN is not exempt: it also needs a business to use protected endpoints.
   - Modules that scope data by business get its id from `BusinessOwnershipQueryUseCase.requireBusinessIdOf(uid)` (403 `BUSINESS_REQUIRED` if there is none).
-- Employees (HU-17). `POST /api/empleados` creates an employee in the caller's business (`employees`, `ACTIVE`/`INACTIVE`; `DELETED` is the soft delete).
+- Employees (HU-17). `POST /api/employees` creates an employee in the caller's business (`employees`, `ACTIVE`/`INACTIVE`; `DELETED` is the soft delete).
   - Email (stored lowercased) and phone must not be used by another non-deleted employee of the business (409 `DuplicateEmployeeException`). The check lives in the use case: the partial unique indexes wait for migrations, so two concurrent requests can still slip through.
   - `serviceIds` are written to `service_employees` only through the service module's `AssignEmployeeServicesUseCase` (ADR-002), in the same transaction. Unknown, foreign or deleted services give 400 with `rejectedIds` and nothing is stored.
   - `EmployeeQueryUseCase.findAssignableIds` is the port the service module will use to validate `employeeIds` (HU-12).
@@ -169,7 +169,7 @@ Rules that cut across modules:
 - **Notifications:**
   - An appointment is created with `notificationStatus=PENDING`.
   - After commit, the API calls n8n `POST /webhook/notificar-cita` asynchronously.
-  - n8n reports back on `PATCH /api/citas/{id}/notificacion` with `SENT` or `FAILED`.
+  - n8n reports back on `PATCH /api/appointments/{id}/notification` with `SENT` or `FAILED`.
   - A Spring `@Scheduled` job retries `PENDING`/`FAILED` appointments up to N attempts (suggested: 3 attempts, 5 minutes apart), then alerts the admin.
 - **Cross-store queries** such as "future appointments of a service" query Firestore by `serviceId` or `employeeId` first, then enrich the results from PostgreSQL.
 - **Firestore limit:** an `in` filter accepts at most 30 values, so batch longer employee lists.

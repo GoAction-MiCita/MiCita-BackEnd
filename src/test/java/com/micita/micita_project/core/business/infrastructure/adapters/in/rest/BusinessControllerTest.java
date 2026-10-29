@@ -32,7 +32,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 /**
- * HU-03: {@code POST /api/negocios/onboarding} answers 201, 400, 401 and 409, and the owner always
+ * HU-03: {@code POST /api/business/onboarding} answers 201, 400, 401 and 409, and the owner always
  * comes from the access token.
  */
 @WebMvcTest(BusinessController.class)

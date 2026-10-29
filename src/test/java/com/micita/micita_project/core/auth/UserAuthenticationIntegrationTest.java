@@ -164,7 +164,7 @@ class UserAuthenticationIntegrationTest {
 	}
 
 	private void onboard(String accessToken) throws Exception {
-		mockMvc.perform(post("/api/negocios/onboarding").header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+		mockMvc.perform(post("/api/business/onboarding").header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"name\":\"Admin Shop\",\"address\":\"Calle 1\",\"phone\":\"+573001112233\"}"))
 			.andExpect(status().isCreated());

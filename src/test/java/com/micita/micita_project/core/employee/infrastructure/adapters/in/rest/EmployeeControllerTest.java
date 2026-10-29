@@ -36,7 +36,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 /**
- * HU-17: {@code POST /api/empleados} answers 201, 400, 401, 403 and 409, and the business always
+ * HU-17: {@code POST /api/employees} answers 201, 400, 401, 403 and 409, and the business always
  * comes from the access token.
  */
 @WebMvcTest(EmployeeController.class)
@@ -154,7 +154,7 @@ class EmployeeControllerTest {
 	}
 
 	private static MockHttpServletRequestBuilder create(String body) {
-		return post("/api/empleados").contentType(MediaType.APPLICATION_JSON).content(body);
+		return post("/api/employees").contentType(MediaType.APPLICATION_JSON).content(body);
 	}
 
 	private static RequestPostProcessor userJwt() {

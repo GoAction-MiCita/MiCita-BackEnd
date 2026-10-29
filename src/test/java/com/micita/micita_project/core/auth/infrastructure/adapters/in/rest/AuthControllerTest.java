@@ -201,7 +201,7 @@ class AuthControllerTest {
 
 	@Test
 	void privateEndpointWithoutTokenIsUnauthorized() throws Exception {
-		mockMvc.perform(get("/api/servicios")).andExpect(status().isUnauthorized());
+		mockMvc.perform(get("/api/services")).andExpect(status().isUnauthorized());
 	}
 
 	private static String registerBody(String password) {

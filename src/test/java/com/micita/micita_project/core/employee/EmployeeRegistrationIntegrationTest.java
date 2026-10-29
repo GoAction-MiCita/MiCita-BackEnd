@@ -167,7 +167,7 @@ class EmployeeRegistrationIntegrationTest {
 
 	@Test
 	void requestWithoutTokenIsUnauthorized() throws Exception {
-		mockMvc.perform(post("/api/empleados").contentType(MediaType.APPLICATION_JSON)
+		mockMvc.perform(post("/api/employees").contentType(MediaType.APPLICATION_JSON)
 			.content(employee("carlos@elcorte.com", null)))
 			.andExpect(status().isUnauthorized());
 	}
@@ -185,7 +185,7 @@ class EmployeeRegistrationIntegrationTest {
 
 	private Owner ownerWithBusiness() throws Exception {
 		String access = JsonPath.read(login(newUser()), "$.accessToken");
-		String business = mockMvc.perform(post("/api/negocios/onboarding")
+		String business = mockMvc.perform(post("/api/business/onboarding")
 			.header(HttpHeaders.AUTHORIZATION, "Bearer " + access)
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("{\"name\":\"El Corte\",\"address\":\"Calle 10\",\"phone\":\"+573001234567\"}"))
@@ -219,7 +219,7 @@ class EmployeeRegistrationIntegrationTest {
 	}
 
 	private ResultActions createEmployee(String accessToken, String body) throws Exception {
-		return mockMvc.perform(post("/api/empleados").header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+		return mockMvc.perform(post("/api/employees").header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
 			.contentType(MediaType.APPLICATION_JSON)
 			.content(body));
 	}

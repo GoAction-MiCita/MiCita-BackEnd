@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/empleados")
+@RequestMapping("/api/employees")
 @Tag(name = "Employees", description = "Employees of the caller's business")
 public class EmployeeController {
 

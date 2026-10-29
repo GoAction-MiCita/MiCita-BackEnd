@@ -26,7 +26,7 @@ class BusinessRequiredOpenApiCustomizerTest {
 		Operation admin = operation();
 		admin.getResponses().addApiResponse("403", new ApiResponse().description("Not an admin"));
 
-		customise(new Paths().addPathItem("/api/servicios", new PathItem().get(services))
+		customise(new Paths().addPathItem("/api/services", new PathItem().get(services))
 			.addPathItem("/api/admin", new PathItem().get(admin)));
 
 		assertThat(services.getResponses().get("403").getDescription()).contains("BUSINESS_REQUIRED");
@@ -45,7 +45,7 @@ class BusinessRequiredOpenApiCustomizerTest {
 
 		customise(new Paths().addPathItem("/api/auth/login", new PathItem().post(login))
 			.addPathItem(BusinessController.ONBOARDING_PATH, new PathItem().post(onboarding))
-			.addPathItem("/api/citas", new PathItem().post(publicBooking))
+			.addPathItem("/api/appointments", new PathItem().post(publicBooking))
 			.addPathItem("/actuator/health", new PathItem().get(outsideApi)));
 
 		assertThat(List.of(login, onboarding, publicBooking, outsideApi))
@@ -65,7 +65,7 @@ class BusinessRequiredOpenApiCustomizerTest {
 	void operationWithoutResponsesIsIgnored() {
 		Operation operation = new Operation();
 
-		customise(new Paths().addPathItem("/api/servicios", new PathItem().get(operation)));
+		customise(new Paths().addPathItem("/api/services", new PathItem().get(operation)));
 
 		assertThat(operation.getResponses()).isNull();
 	}

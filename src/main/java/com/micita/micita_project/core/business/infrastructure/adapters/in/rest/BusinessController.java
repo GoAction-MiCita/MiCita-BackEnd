@@ -23,11 +23,11 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/negocios")
+@RequestMapping("/api/business")
 @Tag(name = "Businesses", description = "Business registration and configuration")
 public class BusinessController {
 
-	public static final String ONBOARDING_PATH = "/api/negocios/onboarding";
+	public static final String ONBOARDING_PATH = "/api/business/onboarding";
 
 	private final CreateBusinessUseCase createBusinessUseCase;
 

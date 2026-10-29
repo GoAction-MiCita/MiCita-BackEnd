@@ -117,7 +117,7 @@ class BusinessOnboardingIntegrationTest {
 
 	@Test
 	void onboardingWithoutTokenIsUnauthorized() throws Exception {
-		mockMvc.perform(post("/api/negocios/onboarding").contentType(MediaType.APPLICATION_JSON).content(BUSINESS))
+		mockMvc.perform(post("/api/business/onboarding").contentType(MediaType.APPLICATION_JSON).content(BUSINESS))
 			.andExpect(status().isUnauthorized());
 	}
 
@@ -141,7 +141,7 @@ class BusinessOnboardingIntegrationTest {
 	}
 
 	private ResultActions onboard(String accessToken, String body) throws Exception {
-		return mockMvc.perform(post("/api/negocios/onboarding").header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+		return mockMvc.perform(post("/api/business/onboarding").header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
 			.contentType(MediaType.APPLICATION_JSON)
 			.content(body));
 	}
