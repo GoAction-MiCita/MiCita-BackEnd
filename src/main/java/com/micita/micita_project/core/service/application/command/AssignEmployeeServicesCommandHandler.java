@@ -11,21 +11,17 @@ import com.micita.micita_project.core.service.application.ports.out.command.Serv
 import com.micita.micita_project.core.service.application.ports.out.query.ServiceQueryRepositoryPort;
 import com.micita.micita_project.core.service.domain.exceptions.InvalidServiceIdsException;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@RequiredArgsConstructor
 public class AssignEmployeeServicesCommandHandler implements AssignEmployeeServicesUseCase {
 
 	private final ServiceQueryRepositoryPort serviceQueryRepository;
 
 	private final ServiceEmployeeCommandRepositoryPort serviceEmployeeCommandRepository;
-
-	public AssignEmployeeServicesCommandHandler(ServiceQueryRepositoryPort serviceQueryRepository,
-			ServiceEmployeeCommandRepositoryPort serviceEmployeeCommandRepository) {
-		this.serviceQueryRepository = serviceQueryRepository;
-		this.serviceEmployeeCommandRepository = serviceEmployeeCommandRepository;
-	}
 
 	@Override
 	@Transactional

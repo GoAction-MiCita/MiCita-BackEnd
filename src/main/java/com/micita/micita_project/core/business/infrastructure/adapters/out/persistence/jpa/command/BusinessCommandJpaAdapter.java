@@ -6,20 +6,17 @@ import com.micita.micita_project.core.business.domain.models.Business;
 import com.micita.micita_project.core.business.infrastructure.adapters.out.persistence.jpa.mappers.BusinessBDMapper;
 import com.micita.micita_project.core.business.infrastructure.adapters.out.persistence.jpa.repositories.BusinessJpaRepository;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class BusinessCommandJpaAdapter implements BusinessCommandRepositoryPort {
 
 	private final BusinessJpaRepository businessJpaRepository;
 
 	private final BusinessBDMapper businessBDMapper;
-
-	public BusinessCommandJpaAdapter(BusinessJpaRepository businessJpaRepository, BusinessBDMapper businessBDMapper) {
-		this.businessJpaRepository = businessJpaRepository;
-		this.businessBDMapper = businessBDMapper;
-	}
 
 	@Override
 	public Business save(Business business) {

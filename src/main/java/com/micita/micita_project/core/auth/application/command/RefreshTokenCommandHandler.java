@@ -14,10 +14,12 @@ import com.micita.micita_project.core.auth.domain.exceptions.InvalidRefreshToken
 import com.micita.micita_project.core.auth.domain.models.AuthenticatedUser;
 import com.micita.micita_project.core.auth.domain.models.RefreshToken;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@RequiredArgsConstructor
 public class RefreshTokenCommandHandler implements RefreshTokenUseCase {
 
 	private final RefreshTokenQueryRepositoryPort refreshTokenQueryRepository;
@@ -31,18 +33,6 @@ public class RefreshTokenCommandHandler implements RefreshTokenUseCase {
 	private final SessionTokensIssuer sessionTokensIssuer;
 
 	private final Clock clock;
-
-	public RefreshTokenCommandHandler(RefreshTokenQueryRepositoryPort refreshTokenQueryRepository,
-			RefreshTokenCommandRepositoryPort refreshTokenCommandRepository,
-			RefreshTokenGeneratorPort refreshTokenGenerator, UserQueryRepositoryPort userQueryRepository,
-			SessionTokensIssuer sessionTokensIssuer, Clock clock) {
-		this.refreshTokenQueryRepository = refreshTokenQueryRepository;
-		this.refreshTokenCommandRepository = refreshTokenCommandRepository;
-		this.refreshTokenGenerator = refreshTokenGenerator;
-		this.userQueryRepository = userQueryRepository;
-		this.sessionTokensIssuer = sessionTokensIssuer;
-		this.clock = clock;
-	}
 
 	@Override
 	@Transactional

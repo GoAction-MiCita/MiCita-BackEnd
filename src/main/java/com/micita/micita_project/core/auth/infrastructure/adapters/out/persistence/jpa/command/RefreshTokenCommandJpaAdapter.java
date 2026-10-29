@@ -8,21 +8,17 @@ import com.micita.micita_project.core.auth.domain.models.RefreshToken;
 import com.micita.micita_project.core.auth.infrastructure.adapters.out.persistence.jpa.mappers.RefreshTokenBDMapper;
 import com.micita.micita_project.core.auth.infrastructure.adapters.out.persistence.jpa.repositories.RefreshTokenJpaRepository;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 @Component
+@RequiredArgsConstructor
 public class RefreshTokenCommandJpaAdapter implements RefreshTokenCommandRepositoryPort {
 
 	private final RefreshTokenJpaRepository refreshTokenJpaRepository;
 
 	private final RefreshTokenBDMapper refreshTokenBDMapper;
-
-	public RefreshTokenCommandJpaAdapter(RefreshTokenJpaRepository refreshTokenJpaRepository,
-			RefreshTokenBDMapper refreshTokenBDMapper) {
-		this.refreshTokenJpaRepository = refreshTokenJpaRepository;
-		this.refreshTokenBDMapper = refreshTokenBDMapper;
-	}
 
 	@Override
 	public RefreshToken save(RefreshToken refreshToken) {

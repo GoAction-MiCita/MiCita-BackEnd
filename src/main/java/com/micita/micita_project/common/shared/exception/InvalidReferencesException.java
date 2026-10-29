@@ -4,10 +4,13 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
+import lombok.Getter;
+
 /**
  * Some ids sent in {@code field} don't exist, belong to another business or were deleted. Mapped to
  * 400 with the field in {@code errors} and the offending ids in {@code rejectedIds}.
  */
+@Getter
 public class InvalidReferencesException extends RuntimeException {
 
 	private final String field;
@@ -18,14 +21,6 @@ public class InvalidReferencesException extends RuntimeException {
 		super("Some referenced ids are unknown or not available");
 		this.field = field;
 		this.rejectedIds = List.copyOf(rejectedIds);
-	}
-
-	public String getField() {
-		return field;
-	}
-
-	public List<UUID> getRejectedIds() {
-		return rejectedIds;
 	}
 
 }

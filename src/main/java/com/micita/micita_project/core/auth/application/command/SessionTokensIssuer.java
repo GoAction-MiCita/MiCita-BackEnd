@@ -16,6 +16,7 @@ import com.micita.micita_project.core.auth.domain.models.IssuedToken;
 import com.micita.micita_project.core.auth.domain.models.RefreshToken;
 import com.micita.micita_project.core.auth.domain.models.SessionTokens;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Component;
  * plus a new refresh token, of which only the hash is stored. Shared by login and refresh.
  */
 @Component
+@RequiredArgsConstructor
 public class SessionTokensIssuer {
 
 	private final TokenIssuerPort tokenIssuer;
@@ -38,18 +40,6 @@ public class SessionTokensIssuer {
 	private final JwtProperties jwtProperties;
 
 	private final Clock clock;
-
-	public SessionTokensIssuer(TokenIssuerPort tokenIssuer, RefreshTokenGeneratorPort refreshTokenGenerator,
-			RefreshTokenCommandRepositoryPort refreshTokenCommandRepository, BusinessQueryPort businessQuery,
-			TokenMapper tokenMapper, JwtProperties jwtProperties, Clock clock) {
-		this.tokenIssuer = tokenIssuer;
-		this.refreshTokenGenerator = refreshTokenGenerator;
-		this.refreshTokenCommandRepository = refreshTokenCommandRepository;
-		this.businessQuery = businessQuery;
-		this.tokenMapper = tokenMapper;
-		this.jwtProperties = jwtProperties;
-		this.clock = clock;
-	}
 
 	public TokenResponse issue(AuthenticatedUser user) {
 		IssuedToken accessToken = tokenIssuer.issue(user, businessQuery.existsForOwner(user.userId()));

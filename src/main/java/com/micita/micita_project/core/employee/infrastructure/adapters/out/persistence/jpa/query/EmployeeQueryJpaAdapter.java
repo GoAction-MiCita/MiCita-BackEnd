@@ -8,16 +8,14 @@ import com.micita.micita_project.core.employee.application.ports.out.query.Emplo
 import com.micita.micita_project.core.employee.domain.models.EmployeeStatus;
 import com.micita.micita_project.core.employee.infrastructure.adapters.out.persistence.jpa.repositories.EmployeeJpaRepository;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class EmployeeQueryJpaAdapter implements EmployeeQueryRepositoryPort {
 
 	private final EmployeeJpaRepository employeeJpaRepository;
-
-	public EmployeeQueryJpaAdapter(EmployeeJpaRepository employeeJpaRepository) {
-		this.employeeJpaRepository = employeeJpaRepository;
-	}
 
 	@Override
 	public boolean existsByEmail(UUID businessId, String email) {

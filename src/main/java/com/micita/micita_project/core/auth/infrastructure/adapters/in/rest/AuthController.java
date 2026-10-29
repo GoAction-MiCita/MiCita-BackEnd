@@ -17,6 +17,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/auth")
 @Tag(name = "Auth", description = "Registration, authentication and token issuance")
+@RequiredArgsConstructor
 public class AuthController {
 
 	private final LoginUseCase loginUseCase;
@@ -37,14 +39,6 @@ public class AuthController {
 	private final RefreshTokenUseCase refreshTokenUseCase;
 
 	private final LogoutUseCase logoutUseCase;
-
-	public AuthController(LoginUseCase loginUseCase, RegisterUserUseCase registerUserUseCase,
-			RefreshTokenUseCase refreshTokenUseCase, LogoutUseCase logoutUseCase) {
-		this.loginUseCase = loginUseCase;
-		this.registerUserUseCase = registerUserUseCase;
-		this.refreshTokenUseCase = refreshTokenUseCase;
-		this.logoutUseCase = logoutUseCase;
-	}
 
 	@PostMapping("/register")
 	@ResponseStatus(HttpStatus.CREATED)

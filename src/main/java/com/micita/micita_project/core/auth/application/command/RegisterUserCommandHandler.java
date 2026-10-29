@@ -12,9 +12,11 @@ import com.micita.micita_project.core.auth.application.ports.out.query.UserQuery
 import com.micita.micita_project.core.auth.domain.exceptions.DuplicateUserException;
 import com.micita.micita_project.core.auth.domain.models.User;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class RegisterUserCommandHandler implements RegisterUserUseCase {
 
 	private final UserQueryRepositoryPort userQueryRepository;
@@ -24,14 +26,6 @@ public class RegisterUserCommandHandler implements RegisterUserUseCase {
 	private final PasswordHasherPort passwordHasher;
 
 	private final UserMapper userMapper;
-
-	public RegisterUserCommandHandler(UserQueryRepositoryPort userQueryRepository,
-			UserCommandRepositoryPort userCommandRepository, PasswordHasherPort passwordHasher, UserMapper userMapper) {
-		this.userQueryRepository = userQueryRepository;
-		this.userCommandRepository = userCommandRepository;
-		this.passwordHasher = passwordHasher;
-		this.userMapper = userMapper;
-	}
 
 	@Override
 	public UserResponse register(RegisterUserRequest request) {

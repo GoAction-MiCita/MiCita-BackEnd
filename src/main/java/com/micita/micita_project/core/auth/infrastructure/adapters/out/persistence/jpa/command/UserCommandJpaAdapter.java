@@ -6,20 +6,17 @@ import com.micita.micita_project.core.auth.domain.models.User;
 import com.micita.micita_project.core.auth.infrastructure.adapters.out.persistence.jpa.mappers.UserBDMapper;
 import com.micita.micita_project.core.auth.infrastructure.adapters.out.persistence.jpa.repositories.UserJpaRepository;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class UserCommandJpaAdapter implements UserCommandRepositoryPort {
 
 	private final UserJpaRepository userJpaRepository;
 
 	private final UserBDMapper userBDMapper;
-
-	public UserCommandJpaAdapter(UserJpaRepository userJpaRepository, UserBDMapper userBDMapper) {
-		this.userJpaRepository = userJpaRepository;
-		this.userBDMapper = userBDMapper;
-	}
 
 	@Override
 	public User save(User user) {

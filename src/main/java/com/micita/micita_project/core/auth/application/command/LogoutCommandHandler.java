@@ -9,9 +9,11 @@ import com.micita.micita_project.core.auth.application.ports.out.RefreshTokenGen
 import com.micita.micita_project.core.auth.application.ports.out.command.RefreshTokenCommandRepositoryPort;
 import com.micita.micita_project.core.auth.application.ports.out.query.RefreshTokenQueryRepositoryPort;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class LogoutCommandHandler implements LogoutUseCase {
 
 	private final RefreshTokenQueryRepositoryPort refreshTokenQueryRepository;
@@ -21,15 +23,6 @@ public class LogoutCommandHandler implements LogoutUseCase {
 	private final RefreshTokenGeneratorPort refreshTokenGenerator;
 
 	private final Clock clock;
-
-	public LogoutCommandHandler(RefreshTokenQueryRepositoryPort refreshTokenQueryRepository,
-			RefreshTokenCommandRepositoryPort refreshTokenCommandRepository,
-			RefreshTokenGeneratorPort refreshTokenGenerator, Clock clock) {
-		this.refreshTokenQueryRepository = refreshTokenQueryRepository;
-		this.refreshTokenCommandRepository = refreshTokenCommandRepository;
-		this.refreshTokenGenerator = refreshTokenGenerator;
-		this.clock = clock;
-	}
 
 	@Override
 	public void logout(RefreshTokenRequest request) {

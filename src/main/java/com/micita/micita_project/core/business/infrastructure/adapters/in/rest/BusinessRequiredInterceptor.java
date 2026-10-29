@@ -8,6 +8,7 @@ import com.micita.micita_project.core.business.domain.exceptions.BusinessRequire
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
@@ -20,6 +21,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
  * created, even with an access token that still says {@code hasBusiness=false}. Anonymous requests
  * pass through: Spring Security already decided they may reach a public endpoint.
  */
+@RequiredArgsConstructor
 public class BusinessRequiredInterceptor implements HandlerInterceptor {
 
 	public static final String PROTECTED_PATTERN = "/api/**";
@@ -28,10 +30,6 @@ public class BusinessRequiredInterceptor implements HandlerInterceptor {
 	public static final List<String> EXEMPT_PATTERNS = List.of("/api/auth/**", BusinessController.ONBOARDING_PATH);
 
 	private final BusinessOwnershipQueryUseCase businessOwnershipQuery;
-
-	public BusinessRequiredInterceptor(BusinessOwnershipQueryUseCase businessOwnershipQuery) {
-		this.businessOwnershipQuery = businessOwnershipQuery;
-	}
 
 	@Override
 	public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {

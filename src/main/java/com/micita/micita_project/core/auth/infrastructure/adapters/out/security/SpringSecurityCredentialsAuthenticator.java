@@ -4,6 +4,7 @@ import com.micita.micita_project.core.auth.application.ports.out.CredentialsAuth
 import com.micita.micita_project.core.auth.domain.exceptions.InvalidCredentialsException;
 import com.micita.micita_project.core.auth.domain.models.AuthenticatedUser;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -11,13 +12,10 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class SpringSecurityCredentialsAuthenticator implements CredentialsAuthenticatorPort {
 
 	private final AuthenticationManager authenticationManager;
-
-	public SpringSecurityCredentialsAuthenticator(AuthenticationManager authenticationManager) {
-		this.authenticationManager = authenticationManager;
-	}
 
 	@Override
 	public AuthenticatedUser authenticate(String username, String password) {

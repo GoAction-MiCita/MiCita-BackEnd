@@ -5,19 +5,16 @@ import com.micita.micita_project.core.employee.domain.models.Employee;
 import com.micita.micita_project.core.employee.infrastructure.adapters.out.persistence.jpa.mappers.EmployeeBDMapper;
 import com.micita.micita_project.core.employee.infrastructure.adapters.out.persistence.jpa.repositories.EmployeeJpaRepository;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class EmployeeCommandJpaAdapter implements EmployeeCommandRepositoryPort {
 
 	private final EmployeeJpaRepository employeeJpaRepository;
 
 	private final EmployeeBDMapper employeeBDMapper;
-
-	public EmployeeCommandJpaAdapter(EmployeeJpaRepository employeeJpaRepository, EmployeeBDMapper employeeBDMapper) {
-		this.employeeJpaRepository = employeeJpaRepository;
-		this.employeeBDMapper = employeeBDMapper;
-	}
 
 	@Override
 	public Employee save(Employee employee) {

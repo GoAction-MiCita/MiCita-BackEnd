@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -25,13 +26,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/employees")
 @Tag(name = "Employees", description = "Employees of the caller's business")
+@RequiredArgsConstructor
 public class EmployeeController {
 
 	private final CreateEmployeeUseCase createEmployeeUseCase;
-
-	public EmployeeController(CreateEmployeeUseCase createEmployeeUseCase) {
-		this.createEmployeeUseCase = createEmployeeUseCase;
-	}
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)

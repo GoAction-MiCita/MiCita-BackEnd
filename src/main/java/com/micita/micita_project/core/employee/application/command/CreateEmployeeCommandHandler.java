@@ -18,10 +18,12 @@ import com.micita.micita_project.core.employee.domain.exceptions.DuplicateEmploy
 import com.micita.micita_project.core.employee.domain.models.Employee;
 import com.micita.micita_project.core.employee.domain.models.EmployeeStatus;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@RequiredArgsConstructor
 public class CreateEmployeeCommandHandler implements CreateEmployeeUseCase {
 
 	private final BusinessQueryPort businessQuery;
@@ -35,17 +37,6 @@ public class CreateEmployeeCommandHandler implements CreateEmployeeUseCase {
 	private final EmployeeMapper employeeMapper;
 
 	private final Clock clock;
-
-	public CreateEmployeeCommandHandler(BusinessQueryPort businessQuery,
-			EmployeeQueryRepositoryPort employeeQueryRepository, EmployeeCommandRepositoryPort employeeCommandRepository,
-			EmployeeServicesCommandPort employeeServices, EmployeeMapper employeeMapper, Clock clock) {
-		this.businessQuery = businessQuery;
-		this.employeeQueryRepository = employeeQueryRepository;
-		this.employeeCommandRepository = employeeCommandRepository;
-		this.employeeServices = employeeServices;
-		this.employeeMapper = employeeMapper;
-		this.clock = clock;
-	}
 
 	/**
 	 * Employee and service assignment share one transaction: rejected services roll the employee back.

@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -25,15 +26,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/business")
 @Tag(name = "Businesses", description = "Business registration and configuration")
+@RequiredArgsConstructor
 public class BusinessController {
 
 	public static final String ONBOARDING_PATH = "/api/business/onboarding";
 
 	private final CreateBusinessUseCase createBusinessUseCase;
-
-	public BusinessController(CreateBusinessUseCase createBusinessUseCase) {
-		this.createBusinessUseCase = createBusinessUseCase;
-	}
 
 	@PostMapping("/onboarding")
 	@ResponseStatus(HttpStatus.CREATED)

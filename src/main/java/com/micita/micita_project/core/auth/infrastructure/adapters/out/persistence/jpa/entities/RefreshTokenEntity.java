@@ -11,8 +11,13 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 
+import lombok.Getter;
+import lombok.Setter;
+
 @Entity
 @Table(name = "refresh_tokens", indexes = @Index(name = "idx_refresh_tokens_user_id", columnList = "user_id"))
+@Getter
+@Setter
 public class RefreshTokenEntity {
 
 	@Id
@@ -34,53 +39,5 @@ public class RefreshTokenEntity {
 
 	@Column(name = "revoked_at")
 	private Instant revokedAt;
-
-	public UUID getId() {
-		return id;
-	}
-
-	public void setId(UUID id) {
-		this.id = id;
-	}
-
-	public UUID getUserId() {
-		return userId;
-	}
-
-	public void setUserId(UUID userId) {
-		this.userId = userId;
-	}
-
-	public String getTokenHash() {
-		return tokenHash;
-	}
-
-	public void setTokenHash(String tokenHash) {
-		this.tokenHash = tokenHash;
-	}
-
-	public Instant getCreatedAt() {
-		return createdAt;
-	}
-
-	public void setCreatedAt(Instant createdAt) {
-		this.createdAt = createdAt;
-	}
-
-	public Instant getExpiresAt() {
-		return expiresAt;
-	}
-
-	public void setExpiresAt(Instant expiresAt) {
-		this.expiresAt = expiresAt;
-	}
-
-	public Instant getRevokedAt() {
-		return revokedAt;
-	}
-
-	public void setRevokedAt(Instant revokedAt) {
-		this.revokedAt = revokedAt;
-	}
 
 }

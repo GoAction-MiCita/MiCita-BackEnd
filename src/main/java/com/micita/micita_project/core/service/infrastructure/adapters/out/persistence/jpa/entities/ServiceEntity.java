@@ -15,11 +15,16 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 
+import lombok.Getter;
+import lombok.Setter;
+
 /**
  * Columns follow HU-09. So far only the lookups that assign services to employees (HU-17) use it.
  */
 @Entity
 @Table(name = "services", indexes = @Index(name = "idx_services_business_id", columnList = "business_id"))
+@Getter
+@Setter
 public class ServiceEntity {
 
 	@Id
@@ -50,77 +55,5 @@ public class ServiceEntity {
 
 	@Column(name = "updated_at", nullable = false)
 	private Instant updatedAt;
-
-	public UUID getId() {
-		return id;
-	}
-
-	public void setId(UUID id) {
-		this.id = id;
-	}
-
-	public UUID getBusinessId() {
-		return businessId;
-	}
-
-	public void setBusinessId(UUID businessId) {
-		this.businessId = businessId;
-	}
-
-	public String getName() {
-		return name;
-	}
-
-	public void setName(String name) {
-		this.name = name;
-	}
-
-	public String getDescription() {
-		return description;
-	}
-
-	public void setDescription(String description) {
-		this.description = description;
-	}
-
-	public Integer getDurationMinutes() {
-		return durationMinutes;
-	}
-
-	public void setDurationMinutes(Integer durationMinutes) {
-		this.durationMinutes = durationMinutes;
-	}
-
-	public BigDecimal getPrice() {
-		return price;
-	}
-
-	public void setPrice(BigDecimal price) {
-		this.price = price;
-	}
-
-	public ServiceStatus getStatus() {
-		return status;
-	}
-
-	public void setStatus(ServiceStatus status) {
-		this.status = status;
-	}
-
-	public Instant getCreatedAt() {
-		return createdAt;
-	}
-
-	public void setCreatedAt(Instant createdAt) {
-		this.createdAt = createdAt;
-	}
-
-	public Instant getUpdatedAt() {
-		return updatedAt;
-	}
-
-	public void setUpdatedAt(Instant updatedAt) {
-		this.updatedAt = updatedAt;
-	}
 
 }

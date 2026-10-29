@@ -8,6 +8,7 @@ import com.micita.micita_project.core.auth.application.ports.out.command.UserCom
 import com.micita.micita_project.core.auth.application.ports.out.query.UserQueryRepositoryPort;
 import com.micita.micita_project.core.auth.domain.models.User;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 /**
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
  * only way to obtain an administrator until role management exists.
  */
 @Service
+@RequiredArgsConstructor
 public class BootstrapAdminCommandHandler implements BootstrapAdminUseCase {
 
 	static final String ADMIN_ROLE = "ADMIN";
@@ -24,13 +26,6 @@ public class BootstrapAdminCommandHandler implements BootstrapAdminUseCase {
 	private final UserCommandRepositoryPort userCommandRepository;
 
 	private final PasswordHasherPort passwordHasher;
-
-	public BootstrapAdminCommandHandler(UserQueryRepositoryPort userQueryRepository,
-			UserCommandRepositoryPort userCommandRepository, PasswordHasherPort passwordHasher) {
-		this.userQueryRepository = userQueryRepository;
-		this.userCommandRepository = userCommandRepository;
-		this.passwordHasher = passwordHasher;
-	}
 
 	@Override
 	public void ensureAdmin(String username, String password) {

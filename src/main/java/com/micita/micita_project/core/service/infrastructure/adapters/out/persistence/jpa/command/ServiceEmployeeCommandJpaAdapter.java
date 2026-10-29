@@ -7,16 +7,14 @@ import com.micita.micita_project.core.service.application.ports.out.command.Serv
 import com.micita.micita_project.core.service.infrastructure.adapters.out.persistence.jpa.entities.ServiceEmployeeEntity;
 import com.micita.micita_project.core.service.infrastructure.adapters.out.persistence.jpa.repositories.ServiceEmployeeJpaRepository;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class ServiceEmployeeCommandJpaAdapter implements ServiceEmployeeCommandRepositoryPort {
 
 	private final ServiceEmployeeJpaRepository serviceEmployeeJpaRepository;
-
-	public ServiceEmployeeCommandJpaAdapter(ServiceEmployeeJpaRepository serviceEmployeeJpaRepository) {
-		this.serviceEmployeeJpaRepository = serviceEmployeeJpaRepository;
-	}
 
 	@Override
 	public void replaceServicesOfEmployee(UUID employeeId, Set<UUID> serviceIds) {

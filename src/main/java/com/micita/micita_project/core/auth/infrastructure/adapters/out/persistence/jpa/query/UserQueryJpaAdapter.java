@@ -8,19 +8,16 @@ import com.micita.micita_project.core.auth.domain.models.User;
 import com.micita.micita_project.core.auth.infrastructure.adapters.out.persistence.jpa.mappers.UserBDMapper;
 import com.micita.micita_project.core.auth.infrastructure.adapters.out.persistence.jpa.repositories.UserJpaRepository;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class UserQueryJpaAdapter implements UserQueryRepositoryPort {
 
 	private final UserJpaRepository userJpaRepository;
 
 	private final UserBDMapper userBDMapper;
-
-	public UserQueryJpaAdapter(UserJpaRepository userJpaRepository, UserBDMapper userBDMapper) {
-		this.userJpaRepository = userJpaRepository;
-		this.userBDMapper = userBDMapper;
-	}
 
 	@Override
 	public boolean existsByEmail(String email) {

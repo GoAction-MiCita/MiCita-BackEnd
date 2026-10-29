@@ -14,6 +14,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 
+import lombok.Getter;
+import lombok.Setter;
+
 /**
  * Email and phone are unique per business among non-deleted employees. That needs partial unique
  * indexes, which wait for migrations (D-23); until then the use case checks it and these indexes only
@@ -23,6 +26,8 @@ import jakarta.persistence.Table;
 @Table(name = "employees",
 		indexes = { @Index(name = "idx_employees_business_email", columnList = "business_id, email"),
 				@Index(name = "idx_employees_business_phone", columnList = "business_id, phone") })
+@Getter
+@Setter
 public class EmployeeEntity {
 
 	@Id
@@ -53,77 +58,5 @@ public class EmployeeEntity {
 
 	@Column(name = "updated_at", nullable = false)
 	private Instant updatedAt;
-
-	public UUID getId() {
-		return id;
-	}
-
-	public void setId(UUID id) {
-		this.id = id;
-	}
-
-	public UUID getBusinessId() {
-		return businessId;
-	}
-
-	public void setBusinessId(UUID businessId) {
-		this.businessId = businessId;
-	}
-
-	public String getFirstName() {
-		return firstName;
-	}
-
-	public void setFirstName(String firstName) {
-		this.firstName = firstName;
-	}
-
-	public String getLastName() {
-		return lastName;
-	}
-
-	public void setLastName(String lastName) {
-		this.lastName = lastName;
-	}
-
-	public String getPhone() {
-		return phone;
-	}
-
-	public void setPhone(String phone) {
-		this.phone = phone;
-	}
-
-	public String getEmail() {
-		return email;
-	}
-
-	public void setEmail(String email) {
-		this.email = email;
-	}
-
-	public EmployeeStatus getStatus() {
-		return status;
-	}
-
-	public void setStatus(EmployeeStatus status) {
-		this.status = status;
-	}
-
-	public Instant getCreatedAt() {
-		return createdAt;
-	}
-
-	public void setCreatedAt(Instant createdAt) {
-		this.createdAt = createdAt;
-	}
-
-	public Instant getUpdatedAt() {
-		return updatedAt;
-	}
-
-	public void setUpdatedAt(Instant updatedAt) {
-		this.updatedAt = updatedAt;
-	}
 
 }

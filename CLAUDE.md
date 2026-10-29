@@ -11,6 +11,7 @@ MiCita backend: the Spring Boot REST API for an appointment-booking product. Cro
 
 - Java 26, Spring Boot 4.1.1 (parent POM), Maven via the bundled wrapper.
 - Spring MVC, Bean Validation, Spring Data JPA on PostgreSQL, Spring Security as an OAuth2 resource server (JWT), springdoc-openapi 3.x, MapStruct 1.6 (`defaultComponentModel=spring`, `unmappedTargetPolicy=ERROR`).
+- Lombok 1.18.48 (`lombok.version` overrides Boot's 1.18.46, which can't compile on JDK 27), run before MapStruct through `lombok-mapstruct-binding`. See **Lombok** below.
 - Planned, not yet added: the Cloud Firestore Admin SDK, for appointments (ADR-001).
 - Base package: `com.micita.micita_project`.
 
@@ -31,6 +32,18 @@ Use the Maven wrapper (`./mvnw` in Bash, `.\mvnw.cmd` in PowerShell on Windows):
 If the local JDK is older than 26, `-Djava.version=<installed version>` (17+) overrides the compiler release for a local build. Don't change `java.version` in `pom.xml`.
 
 No linter or formatter is configured. Existing source uses tab indentation.
+
+## Lombok
+
+Use Lombok instead of hand-written boilerplate in new code:
+
+- **Spring beans** (handlers, adapters, controllers, config): `private final` fields + `@RequiredArgsConstructor`. Field order is the constructor's parameter order, which matters for tests that call `new X(...)`. Write the constructor by hand only when it does more than assign (e.g. `JwtTokenIssuer` defaulting its `Clock`).
+- **JPA entities:** `@Getter @Setter`, plus `@NoArgsConstructor(access = AccessLevel.PROTECTED)` when there is another constructor. Never `@Data`, `@EqualsAndHashCode` or `@ToString` on an entity (lazy loading and generated ids break them). `@EqualsAndHashCode` is fine on an `@IdClass` key.
+- **Exceptions:** `@Getter` for the extra fields; keep the constructor, since it calls `super(message)`.
+- **Logging:** `@Slf4j`.
+- **DTOs and domain models** stay Java `record`s; don't convert them to Lombok classes.
+
+`lombok.config` marks generated code `@lombok.Generated` so JaCoCo ignores it, and copies `@Qualifier`/`@Value` onto generated constructor parameters.
 
 ## System context (C4)
 

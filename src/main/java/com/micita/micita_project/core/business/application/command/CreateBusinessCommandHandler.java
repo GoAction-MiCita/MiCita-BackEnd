@@ -14,9 +14,11 @@ import com.micita.micita_project.core.business.application.ports.out.query.Busin
 import com.micita.micita_project.core.business.domain.exceptions.BusinessAlreadyExistsException;
 import com.micita.micita_project.core.business.domain.models.Business;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class CreateBusinessCommandHandler implements CreateBusinessUseCase {
 
 	private final BusinessQueryRepositoryPort businessQueryRepository;
@@ -26,14 +28,6 @@ public class CreateBusinessCommandHandler implements CreateBusinessUseCase {
 	private final BusinessMapper businessMapper;
 
 	private final Clock clock;
-
-	public CreateBusinessCommandHandler(BusinessQueryRepositoryPort businessQueryRepository,
-			BusinessCommandRepositoryPort businessCommandRepository, BusinessMapper businessMapper, Clock clock) {
-		this.businessQueryRepository = businessQueryRepository;
-		this.businessCommandRepository = businessCommandRepository;
-		this.businessMapper = businessMapper;
-		this.clock = clock;
-	}
 
 	@Override
 	public BusinessResponse create(UUID ownerId, CreateBusinessRequest request) {

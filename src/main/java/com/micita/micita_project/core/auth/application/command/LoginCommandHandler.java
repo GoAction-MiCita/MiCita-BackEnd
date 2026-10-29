@@ -6,20 +6,16 @@ import com.micita.micita_project.core.auth.application.ports.in.LoginUseCase;
 import com.micita.micita_project.core.auth.application.ports.out.CredentialsAuthenticatorPort;
 import com.micita.micita_project.core.auth.domain.models.AuthenticatedUser;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class LoginCommandHandler implements LoginUseCase {
 
 	private final CredentialsAuthenticatorPort credentialsAuthenticator;
 
 	private final SessionTokensIssuer sessionTokensIssuer;
-
-	public LoginCommandHandler(CredentialsAuthenticatorPort credentialsAuthenticator,
-			SessionTokensIssuer sessionTokensIssuer) {
-		this.credentialsAuthenticator = credentialsAuthenticator;
-		this.sessionTokensIssuer = sessionTokensIssuer;
-	}
 
 	@Override
 	public TokenResponse login(LoginRequest request) {

@@ -2,6 +2,7 @@ package com.micita.micita_project.core.auth.infrastructure.adapters.out.security
 
 import com.micita.micita_project.core.auth.application.ports.out.PasswordHasherPort;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -10,13 +11,10 @@ import org.springframework.stereotype.Component;
  * hashes carry an algorithm prefix such as {@code {bcrypt}}.
  */
 @Component
+@RequiredArgsConstructor
 public class SpringPasswordHasher implements PasswordHasherPort {
 
 	private final PasswordEncoder passwordEncoder;
-
-	public SpringPasswordHasher(PasswordEncoder passwordEncoder) {
-		this.passwordEncoder = passwordEncoder;
-	}
 
 	@Override
 	public String hash(String rawPassword) {

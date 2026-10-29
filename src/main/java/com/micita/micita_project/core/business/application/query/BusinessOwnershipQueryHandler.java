@@ -6,16 +6,14 @@ import com.micita.micita_project.core.business.application.ports.in.BusinessOwne
 import com.micita.micita_project.core.business.application.ports.out.query.BusinessQueryRepositoryPort;
 import com.micita.micita_project.core.business.domain.exceptions.BusinessRequiredException;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class BusinessOwnershipQueryHandler implements BusinessOwnershipQueryUseCase {
 
 	private final BusinessQueryRepositoryPort businessQueryRepository;
-
-	public BusinessOwnershipQueryHandler(BusinessQueryRepositoryPort businessQueryRepository) {
-		this.businessQueryRepository = businessQueryRepository;
-	}
 
 	@Override
 	public boolean ownsBusiness(UUID userId) {

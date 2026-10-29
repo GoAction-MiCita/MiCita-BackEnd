@@ -6,8 +6,8 @@ import java.util.Map;
 import com.micita.micita_project.common.shared.exception.ConflictException;
 import com.micita.micita_project.common.shared.exception.ResourceNotFoundException;
 import com.micita.micita_project.common.shared.exception.UnauthorizedException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -25,10 +25,9 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
  * Translates domain exceptions into RFC 9457 {@link ProblemDetail} responses.
  * Standard Spring MVC exceptions are handled by {@link ResponseEntityExceptionHandler}.
  */
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
-
-	private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
 	@Override
 	protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
