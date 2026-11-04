@@ -50,6 +50,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		return problem;
 	}
 
+	@ExceptionHandler(InvalidPageRequestException.class)
+	ProblemDetail handleInvalidPageRequest(InvalidPageRequestException ex) {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+		problem.setProperty("errors", ex.getErrors());
+		return problem;
+	}
+
 	@ExceptionHandler(ResourceNotFoundException.class)
 	ProblemDetail handleResourceNotFound(ResourceNotFoundException ex) {
 		return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());

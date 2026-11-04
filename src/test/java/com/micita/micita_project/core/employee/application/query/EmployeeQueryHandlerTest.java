@@ -42,4 +42,20 @@ class EmployeeQueryHandlerTest {
 		verifyNoInteractions(employeeQueryRepository);
 	}
 
+	@Test
+	void bookableIdsAreTheActiveOnesFromTheRepository() {
+		UUID businessId = UUID.randomUUID();
+		UUID active = UUID.randomUUID();
+		UUID inactive = UUID.randomUUID();
+		given(employeeQueryRepository.findBookableIds(businessId, Set.of(active, inactive))).willReturn(Set.of(active));
+
+		assertThat(handler.findBookableIds(businessId, List.of(active, inactive))).containsExactly(active);
+	}
+
+	@Test
+	void emptyListNeedsNoBookableLookup() {
+		assertThat(handler.findBookableIds(UUID.randomUUID(), List.of())).isEmpty();
+		verifyNoInteractions(employeeQueryRepository);
+	}
+
 }
