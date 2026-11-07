@@ -22,6 +22,7 @@ import com.micita.micita_project.common.shared.pagination.PageResponse;
 import com.micita.micita_project.common.shared.security.SecurityConfig;
 import com.micita.micita_project.core.business.application.ports.in.BusinessOwnershipQueryUseCase;
 import com.micita.micita_project.core.employee.application.dto.request.CreateEmployeeRequest;
+import com.micita.micita_project.core.employee.application.dto.request.EmployeeListFilter;
 import com.micita.micita_project.core.employee.application.dto.response.EmployeeListItemResponse;
 import com.micita.micita_project.core.employee.application.dto.response.EmployeeResponse;
 import com.micita.micita_project.core.employee.application.ports.in.CreateEmployeeUseCase;
@@ -57,6 +58,8 @@ class EmployeeControllerTest {
 	private static final UUID EMPLOYEE_ID = UUID.fromString("9a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d");
 
 	private static final UUID CUT = UUID.fromString("5c2d8e4f-1a3b-4c5d-9e6f-7a8b9c0d1e2f");
+
+	private static final EmployeeListFilter NO_FILTER = EmployeeListFilter.none();
 
 	private static final String VALID_BODY = "{\"firstName\":\"Carlos\",\"lastName\":\"Gómez\","
 			+ "\"phone\":\"+573001234567\",\"email\":\"carlos@elcorte.com\",\"status\":\"ACTIVE\","
@@ -166,7 +169,7 @@ class EmployeeControllerTest {
 
 	@Test
 	void listsEmployeesOfTheCallersBusinessWithTheirServices() throws Exception {
-		given(listEmployeesUseCase.list(USER_ID, 0, 10)).willReturn(new PageResponse<>(
+		given(listEmployeesUseCase.list(USER_ID, NO_FILTER, 0, 10)).willReturn(new PageResponse<>(
 				List.of(new EmployeeListItemResponse(EMPLOYEE_ID, "Carlos", "Gómez", "+573001234567",
 						"carlos@elcorte.com", "ACTIVE", List.of(new EmployeeServiceRef(CUT, "Corte")))),
 				0, 10, 1, 1));
@@ -179,20 +182,20 @@ class EmployeeControllerTest {
 			.andExpect(jsonPath("$.size").value(10))
 			.andExpect(jsonPath("$.totalElements").value(1))
 			.andExpect(jsonPath("$.totalPages").value(1));
-		verify(listEmployeesUseCase).list(USER_ID, 0, 10);
+		verify(listEmployeesUseCase).list(USER_ID, NO_FILTER, 0, 10);
 	}
 
 	@Test
 	void pageAndSizeArePassedThrough() throws Exception {
-		given(listEmployeesUseCase.list(USER_ID, 2, 50)).willReturn(new PageResponse<>(List.of(), 2, 50, 0, 0));
+		given(listEmployeesUseCase.list(USER_ID, NO_FILTER, 2, 50)).willReturn(new PageResponse<>(List.of(), 2, 50, 0, 0));
 
 		mockMvc.perform(get("/api/employees?page=2&size=50").with(userJwt())).andExpect(status().isOk());
-		verify(listEmployeesUseCase).list(USER_ID, 2, 50);
+		verify(listEmployeesUseCase).list(USER_ID, NO_FILTER, 2, 50);
 	}
 
 	@Test
 	void pageOutOfRangeIsBadRequestWithErrorsPerParameter() throws Exception {
-		given(listEmployeesUseCase.list(USER_ID, -1, 51)).willThrow(new InvalidPageRequestException(
+		given(listEmployeesUseCase.list(USER_ID, NO_FILTER, -1, 51)).willThrow(new InvalidPageRequestException(
 				Map.of("page", "must be greater than or equal to 0", "size", "must be between 1 and 50")));
 
 		mockMvc.perform(get("/api/employees?page=-1&size=51").with(userJwt()))
@@ -202,9 +205,50 @@ class EmployeeControllerTest {
 	}
 
 	@Test
+	void filtersArePassedThroughWithCommaSeparatedServiceIds() throws Exception {
+		UUID shave = UUID.fromString("6d3e9f5a-2b4c-4d6e-8f7a-8b9c0d1e2f3a");
+		EmployeeListFilter filter = new EmployeeListFilter("ana", "ACTIVE", List.of(CUT, shave));
+		given(listEmployeesUseCase.list(USER_ID, filter, 0, 10)).willReturn(new PageResponse<>(List.of(), 0, 10, 0, 0));
+
+		mockMvc.perform(get("/api/employees?name=ana&status=ACTIVE&serviceIds=" + CUT + "," + shave).with(userJwt()))
+			.andExpect(status().isOk());
+		verify(listEmployeesUseCase).list(USER_ID, filter, 0, 10);
+	}
+
+	@Test
+	void invalidStatusIsBadRequestWithErrorsMap() throws Exception {
+		EmployeeListFilter filter = new EmployeeListFilter(null, "DELETED", null);
+		given(listEmployeesUseCase.list(USER_ID, filter, 0, 10))
+			.willThrow(new InvalidPageRequestException(Map.of("status", "must be ACTIVE or INACTIVE")));
+
+		mockMvc.perform(get("/api/employees?status=DELETED").with(userJwt()))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors.status").value("must be ACTIVE or INACTIVE"));
+	}
+
+	@Test
+	void malformedServiceIdIsBadRequestWithErrorsMap() throws Exception {
+		mockMvc.perform(get("/api/employees?serviceIds=not-a-uuid").with(userJwt()))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors.serviceIds").exists());
+		verify(listEmployeesUseCase, never()).list(any(), any(), anyInt(), anyInt());
+	}
+
+	@Test
+	void foreignServiceInFilterIsBadRequestWithRejectedIds() throws Exception {
+		EmployeeListFilter filter = new EmployeeListFilter(null, null, List.of(CUT));
+		given(listEmployeesUseCase.list(USER_ID, filter, 0, 10)).willThrow(new InvalidServiceIdsException(List.of(CUT)));
+
+		mockMvc.perform(get("/api/employees?serviceIds=" + CUT).with(userJwt()))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors.serviceIds").exists())
+			.andExpect(jsonPath("$.rejectedIds[0]").value(CUT.toString()));
+	}
+
+	@Test
 	void listWithoutTokenIsUnauthorized() throws Exception {
 		mockMvc.perform(get("/api/employees")).andExpect(status().isUnauthorized());
-		verify(listEmployeesUseCase, never()).list(any(), anyInt(), anyInt());
+		verify(listEmployeesUseCase, never()).list(any(), any(), anyInt(), anyInt());
 	}
 
 	@Test
@@ -214,7 +258,7 @@ class EmployeeControllerTest {
 		mockMvc.perform(get("/api/employees").with(userJwt()))
 			.andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.code").value("BUSINESS_REQUIRED"));
-		verify(listEmployeesUseCase, never()).list(any(), anyInt(), anyInt());
+		verify(listEmployeesUseCase, never()).list(any(), any(), anyInt(), anyInt());
 	}
 
 	private static MockHttpServletRequestBuilder create(String body) {

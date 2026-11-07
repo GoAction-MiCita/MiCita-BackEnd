@@ -9,6 +9,7 @@ import com.micita.micita_project.common.shared.exception.UnauthorizedException;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.springframework.beans.TypeMismatchException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -39,6 +40,19 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		ProblemDetail problem = ex.getBody();
 		problem.setDetail("Request validation failed");
 		problem.setProperty("errors", errors);
+		return handleExceptionInternal(ex, problem, headers, status, request);
+	}
+
+	/**
+	 * A query parameter or path variable that can't be converted, such as a malformed UUID in
+	 * {@code serviceIds}: 400 with that parameter in the {@code errors} map.
+	 */
+	@Override
+	protected ResponseEntity<Object> handleTypeMismatch(TypeMismatchException ex, HttpHeaders headers,
+			HttpStatusCode status, WebRequest request) {
+		String parameter = ex.getPropertyName() != null ? ex.getPropertyName() : "request";
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, "Request validation failed");
+		problem.setProperty("errors", Map.of(parameter, "has an invalid value"));
 		return handleExceptionInternal(ex, problem, headers, status, request);
 	}
 

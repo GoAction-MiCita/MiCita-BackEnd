@@ -5,7 +5,8 @@ import java.util.Map;
 import lombok.Getter;
 
 /**
- * {@code page} or {@code size} is outside its range. Mapped to 400 with an {@code errors} map.
+ * A listing's query parameters are invalid: {@code page} or {@code size} outside its range, or a filter
+ * value that isn't allowed. Mapped to 400 with an {@code errors} map.
  */
 @Getter
 public class InvalidPageRequestException extends RuntimeException {

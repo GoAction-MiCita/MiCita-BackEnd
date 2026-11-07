@@ -10,6 +10,7 @@ import java.util.UUID;
 
 import com.micita.micita_project.common.shared.pagination.PageResponse;
 import com.micita.micita_project.core.employee.domain.models.Employee;
+import com.micita.micita_project.core.employee.domain.models.EmployeeCriteria;
 import com.micita.micita_project.core.employee.domain.models.EmployeeStatus;
 import com.micita.micita_project.core.employee.infrastructure.adapters.out.persistence.jpa.entities.EmployeeEntity;
 import com.micita.micita_project.core.employee.infrastructure.adapters.out.persistence.jpa.mappers.EmployeeBDMapper;
@@ -24,6 +25,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -75,16 +77,13 @@ class EmployeeQueryJpaAdapterTest {
 		Employee employee = new Employee(UUID.randomUUID(), BUSINESS_ID, "Carlos", "Gómez", null, null,
 				EmployeeStatus.ACTIVE, Instant.now(), Instant.now());
 		Page<EmployeeEntity> page = new PageImpl<>(List.of(entity), PageRequest.of(1, 5), 6);
-		given(employeeJpaRepository.findByBusinessIdAndStatusNot(eq(BUSINESS_ID), eq(EmployeeStatus.DELETED),
-				any(Pageable.class)))
-			.willReturn(page);
+		given(employeeJpaRepository.findAll(any(Specification.class), any(Pageable.class))).willReturn(page);
 		given(employeeBDMapper.toDomain(entity)).willReturn(employee);
 
-		PageResponse<Employee> result = adapter.findPageOfBusiness(BUSINESS_ID, 1, 5);
+		PageResponse<Employee> result = adapter.findPageOfBusiness(BUSINESS_ID, EmployeeCriteria.none(), 1, 5);
 
 		ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
-		verify(employeeJpaRepository).findByBusinessIdAndStatusNot(eq(BUSINESS_ID), eq(EmployeeStatus.DELETED),
-				pageable.capture());
+		verify(employeeJpaRepository).findAll(any(Specification.class), pageable.capture());
 		assertThat(pageable.getValue().getSort().getOrderFor("createdAt").isDescending()).isTrue();
 		assertThat(pageable.getValue().getSort().getOrderFor("id").isDescending()).isTrue();
 		assertThat(result.content()).containsExactly(employee);
@@ -92,6 +91,12 @@ class EmployeeQueryJpaAdapterTest {
 		assertThat(result.size()).isEqualTo(5);
 		assertThat(result.totalElements()).isEqualTo(6);
 		assertThat(result.totalPages()).isEqualTo(2);
+	}
+
+	@Test
+	void likeWildcardsInTheNameAreEscaped() {
+		assertThat(EmployeeQueryJpaAdapter.escapeLike("50%_a\\b")).isEqualTo("50\\%\\_a\\\\b");
+		assertThat(EmployeeQueryJpaAdapter.escapeLike("ana")).isEqualTo("ana");
 	}
 
 	@Test

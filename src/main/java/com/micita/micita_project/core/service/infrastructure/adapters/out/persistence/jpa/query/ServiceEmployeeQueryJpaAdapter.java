@@ -2,6 +2,7 @@ package com.micita.micita_project.core.service.infrastructure.adapters.out.persi
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import com.micita.micita_project.core.service.application.ports.out.query.ServiceEmployeeQueryRepositoryPort;
@@ -21,6 +22,11 @@ public class ServiceEmployeeQueryJpaAdapter implements ServiceEmployeeQueryRepos
 	@Override
 	public List<ServiceAssignment> findActiveAssignments(UUID businessId, Collection<UUID> employeeIds) {
 		return serviceEmployeeJpaRepository.findActiveAssignments(businessId, employeeIds, ServiceStatus.DELETED);
+	}
+
+	@Override
+	public Set<UUID> findEmployeeIdsAssignedTo(Collection<UUID> serviceIds) {
+		return serviceEmployeeJpaRepository.findEmployeeIdsAssignedTo(serviceIds);
 	}
 
 }

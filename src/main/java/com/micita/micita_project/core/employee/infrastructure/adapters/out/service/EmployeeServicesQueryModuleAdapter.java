@@ -3,6 +3,7 @@ package com.micita.micita_project.core.employee.infrastructure.adapters.out.serv
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -32,6 +33,11 @@ public class EmployeeServicesQueryModuleAdapter implements EmployeeServicesQuery
 						.stream()
 						.map(service -> new EmployeeServiceRef(service.id(), service.name()))
 						.toList()));
+	}
+
+	@Override
+	public Set<UUID> findEmployeeIdsProviding(UUID businessId, Collection<UUID> serviceIds) {
+		return employeeServicesQuery.findEmployeeIdsProviding(businessId, serviceIds);
 	}
 
 }

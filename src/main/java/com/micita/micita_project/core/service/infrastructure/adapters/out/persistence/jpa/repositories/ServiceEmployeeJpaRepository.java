@@ -2,6 +2,7 @@ package com.micita.micita_project.core.service.infrastructure.adapters.out.persi
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import com.micita.micita_project.core.service.domain.models.ServiceAssignment;
@@ -26,5 +27,8 @@ public interface ServiceEmployeeJpaRepository extends JpaRepository<ServiceEmplo
 			+ "and s.status <> :excluded order by s.name, s.id")
 	List<ServiceAssignment> findActiveAssignments(UUID businessId, Collection<UUID> employeeIds,
 			ServiceStatus excluded);
+
+	@Query("select distinct se.employeeId from ServiceEmployeeEntity se where se.serviceId in :serviceIds")
+	Set<UUID> findEmployeeIdsAssignedTo(Collection<UUID> serviceIds);
 
 }

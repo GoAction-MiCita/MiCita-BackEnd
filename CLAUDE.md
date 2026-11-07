@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project state
 
-MiCita backend: the Spring Boot REST API for an appointment-booking product. Cross-cutting infrastructure is in place: hexagonal package layout, JWT login, error handling, Swagger, profiles, and test/coverage tooling. Implemented modules: `auth` (HU-01, HU-02), `business` (onboarding, HU-03/HU-04) and `employee` (registration and listing, HU-17/HU-16). `service` so far only has the `services` table and the `service_employees` association (ADR-002); its endpoints (HU-09, HU-12) are pending.
+MiCita backend: the Spring Boot REST API for an appointment-booking product. Cross-cutting infrastructure is in place: hexagonal package layout, JWT login, error handling, Swagger, profiles, and test/coverage tooling. Implemented modules: `auth` (HU-01, HU-02), `business` (onboarding, HU-03/HU-04) and `employee` (registration, listing and filters, HU-17/HU-16/HU-22). `service` so far only has the `services` table and the `service_employees` association (ADR-002); its endpoints (HU-09, HU-12) are pending.
 
 
 ## Stack
@@ -153,6 +153,10 @@ Implemented today:
   - Email (stored lowercased) and phone must not be used by another non-deleted employee of the business (409 `DuplicateEmployeeException`). The check lives in the use case: the partial unique indexes wait for migrations, so two concurrent requests can still slip through.
   - `serviceIds` are written to `service_employees` only through the service module's `AssignEmployeeServicesUseCase` (ADR-002), in the same transaction. Unknown, foreign or deleted services give 400 with `rejectedIds` and nothing is stored.
   - `GET /api/employees` lists them (HU-16) as a `PageResponse` (`common/shared/pagination`): `page` 0 and `size` 10 by default, `size` at most 50, 400 with an `errors` map otherwise. Newest first (`createdAt` descending, then `id` descending). Deleted employees are left out, and so are deleted services in each employee's `services`. Services come through `EmployeeServicesQueryUseCase` in the service module, one lookup per page.
+  - Optional filters (HU-22), combined with AND, with paging and totals over the filtered result. A JPA `Specification` in `EmployeeQueryJpaAdapter` applies them:
+    - `name`: contained in the first or last name, ignoring case. Accents are not normalized and LIKE wildcards are escaped. Over 100 characters gives 400.
+    - `status`: `ACTIVE` or `INACTIVE`, uppercase only. Anything else (`DELETED`, `active`) gives 400 with `errors.status`.
+    - `serviceIds` (comma-separated or repeated): employees that provide at least one of them, resolved through `EmployeeServicesQueryUseCase.findEmployeeIdsProviding`. Unknown, foreign or deleted services give 400 with `rejectedIds`, and a malformed UUID gives 400 with `errors.serviceIds` (`GlobalExceptionHandler.handleTypeMismatch`).
   - `EmployeeQueryUseCase.findAssignableIds` is the port the service module will use to validate `employeeIds` (HU-12). `BookableEmployeesQueryPort.findBookableIds` returns only `ACTIVE` employees, for F2.
 - Sessions (HU-02). Access tokens last 15 min (`JWT_EXPIRATION`) and refresh tokens 7 days (`JWT_REFRESH_EXPIRATION`).
   - Login, and every refresh, goes through `SessionTokensIssuer`, which issues an access token plus an opaque refresh token (256 random bits).

@@ -1,8 +1,12 @@
 package com.micita.micita_project.core.employee.infrastructure.adapters.in.rest;
 
+import java.util.List;
+import java.util.UUID;
+
 import com.micita.micita_project.common.shared.pagination.PageResponse;
 import com.micita.micita_project.common.shared.security.CurrentUserId;
 import com.micita.micita_project.core.employee.application.dto.request.CreateEmployeeRequest;
+import com.micita.micita_project.core.employee.application.dto.request.EmployeeListFilter;
 import com.micita.micita_project.core.employee.application.dto.response.EmployeeListItemResponse;
 import com.micita.micita_project.core.employee.application.dto.response.EmployeeResponse;
 import com.micita.micita_project.core.employee.application.ports.in.CreateEmployeeUseCase;
@@ -41,15 +45,27 @@ public class EmployeeController {
 	@GetMapping
 	@Operation(summary = "List the employees of the caller's business",
 			description = "Paginated, newest first. Deleted employees and deleted services are left out, and "
-					+ "employees of other businesses never appear")
+					+ "employees of other businesses never appear. The optional filters name, status and "
+					+ "serviceIds are combined with AND, and page totals count only the matching employees")
 	@ApiResponse(responseCode = "200", description = "Page of employees")
 	@ApiResponse(responseCode = "400",
-			description = "page is negative or size is outside 1..50 (errors map)",
+			description = "page is negative, size is outside 1..50, name is longer than 100 characters, status "
+					+ "is not ACTIVE or INACTIVE, or serviceIds has a malformed id (errors map); or serviceIds "
+					+ "has unknown, deleted or foreign services (listed in rejectedIds)",
 			content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
 	@ApiResponse(responseCode = "401", description = "Missing, invalid or expired access token")
 	public PageResponse<EmployeeListItemResponse> list(@Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
-			@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
-		return listEmployeesUseCase.list(CurrentUserId.from(jwt), page, size);
+			@Parameter(description = "Zero-based page number") @RequestParam(defaultValue = "0") int page,
+			@Parameter(description = "Page size, 1..50") @RequestParam(defaultValue = "10") int size,
+			@Parameter(description = "Text contained in the first or last name, ignoring case. Accents are not "
+					+ "normalized", example = "ana") @RequestParam(required = false) String name,
+			@Parameter(description = "ACTIVE or INACTIVE, uppercase only",
+					schema = @Schema(allowableValues = { "ACTIVE", "INACTIVE" })) @RequestParam(
+							required = false) String status,
+			@Parameter(description = "Comma-separated service ids: employees that provide at least one of them")
+			@RequestParam(required = false) List<UUID> serviceIds) {
+		return listEmployeesUseCase.list(CurrentUserId.from(jwt), new EmployeeListFilter(name, status, serviceIds),
+				page, size);
 	}
 
 	@PostMapping
