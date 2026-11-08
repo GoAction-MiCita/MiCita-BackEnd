@@ -64,6 +64,22 @@ class EmployeeQueryJpaAdapterTest {
 	}
 
 	@Test
+	void duplicateLookupsForAnEditIgnoreTheEmployeeItselfAndDeletedOnes() {
+		UUID employeeId = UUID.fromString("9a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d");
+		given(employeeJpaRepository.existsByBusinessIdAndEmailAndStatusNotAndIdNot(BUSINESS_ID, "ana@elcorte.com",
+				EmployeeStatus.DELETED, employeeId))
+			.willReturn(true);
+		given(employeeJpaRepository.existsByBusinessIdAndPhoneAndStatusNotAndIdNot(BUSINESS_ID, "+573109876543",
+				EmployeeStatus.DELETED, employeeId))
+			.willReturn(true);
+
+		assertThat(adapter.existsByEmailExcept(BUSINESS_ID, "ana@elcorte.com", employeeId)).isTrue();
+		assertThat(adapter.existsByPhoneExcept(BUSINESS_ID, "+573109876543", employeeId)).isTrue();
+		assertThat(adapter.existsByEmailExcept(BUSINESS_ID, "carlos@elcorte.com", employeeId)).isFalse();
+		assertThat(adapter.existsByPhoneExcept(BUSINESS_ID, "+573001234567", employeeId)).isFalse();
+	}
+
+	@Test
 	void findOfBusinessIgnoresDeletedEmployeesAndOtherBusinesses() {
 		UUID employeeId = UUID.randomUUID();
 		EmployeeEntity entity = new EmployeeEntity();

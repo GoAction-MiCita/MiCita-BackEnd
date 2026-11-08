@@ -19,6 +19,16 @@ public interface EmployeeQueryRepositoryPort {
 	boolean existsByPhone(UUID businessId, String phone);
 
 	/**
+	 * Like {@link #existsByEmail} but ignoring {@code employeeId}, so an employee doesn't clash with itself.
+	 */
+	boolean existsByEmailExcept(UUID businessId, String email, UUID employeeId);
+
+	/**
+	 * Like {@link #existsByPhone} but ignoring {@code employeeId}, so an employee doesn't clash with itself.
+	 */
+	boolean existsByPhoneExcept(UUID businessId, String phone, UUID employeeId);
+
+	/**
 	 * @return the employee if it belongs to the business and is not deleted
 	 */
 	Optional<Employee> findOfBusiness(UUID businessId, UUID employeeId);

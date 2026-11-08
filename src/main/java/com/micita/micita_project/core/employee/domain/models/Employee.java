@@ -23,4 +23,13 @@ public record Employee(UUID id, UUID businessId, String firstName, String lastNa
 		return new Employee(id, businessId, firstName, lastName, phone, email, status, createdAt, now);
 	}
 
+	/**
+	 * @return a copy with the editable data and {@code updatedAt} changed; the id, the business and the
+	 * creation time are kept
+	 */
+	public Employee withDetails(String firstName, String lastName, String phone, String email, EmployeeStatus status,
+			Instant now) {
+		return new Employee(id, businessId, firstName, lastName, phone, email, status, createdAt, now);
+	}
+
 }

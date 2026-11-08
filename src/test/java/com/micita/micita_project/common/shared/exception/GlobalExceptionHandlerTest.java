@@ -45,6 +45,15 @@ class GlobalExceptionHandlerTest {
 	}
 
 	@Test
+	void conflictPropertiesAreAddedToTheProblem() {
+		ProblemDetail problem = handler
+			.handleConflict(new ConflictException("Has future appointments", Map.of("futureAppointments", 2L)));
+
+		assertThat(problem.getStatus()).isEqualTo(409);
+		assertThat(problem.getProperties()).containsEntry("futureAppointments", 2L);
+	}
+
+	@Test
 	void forbiddenMapsTo403WithCode() {
 		ProblemDetail problem = handler.handleForbidden(new ForbiddenException("BUSINESS_REQUIRED", "Register first"));
 

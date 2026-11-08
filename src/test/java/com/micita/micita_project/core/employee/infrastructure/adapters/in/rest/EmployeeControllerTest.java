@@ -5,11 +5,13 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -26,12 +28,18 @@ import com.micita.micita_project.core.business.application.ports.in.BusinessOwne
 import com.micita.micita_project.core.employee.application.dto.request.ChangeEmployeeStatusRequest;
 import com.micita.micita_project.core.employee.application.dto.request.CreateEmployeeRequest;
 import com.micita.micita_project.core.employee.application.dto.request.EmployeeListFilter;
+import com.micita.micita_project.core.employee.application.dto.request.UpdateEmployeeRequest;
+import com.micita.micita_project.core.employee.application.dto.response.EmployeeDetailResponse;
 import com.micita.micita_project.core.employee.application.dto.response.EmployeeListItemResponse;
 import com.micita.micita_project.core.employee.application.dto.response.EmployeeResponse;
 import com.micita.micita_project.core.employee.application.ports.in.ChangeEmployeeStatusUseCase;
 import com.micita.micita_project.core.employee.application.ports.in.CreateEmployeeUseCase;
+import com.micita.micita_project.core.employee.application.ports.in.DeleteEmployeeUseCase;
+import com.micita.micita_project.core.employee.application.ports.in.GetEmployeeUseCase;
 import com.micita.micita_project.core.employee.application.ports.in.ListEmployeesUseCase;
+import com.micita.micita_project.core.employee.application.ports.in.UpdateEmployeeUseCase;
 import com.micita.micita_project.core.employee.domain.exceptions.DuplicateEmployeeException;
+import com.micita.micita_project.core.employee.domain.exceptions.EmployeeHasFutureAppointmentsException;
 import com.micita.micita_project.core.employee.domain.models.EmployeeServiceRef;
 import com.micita.micita_project.core.service.domain.exceptions.InvalidServiceIdsException;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,8 +57,8 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 /**
- * HU-17: {@code POST /api/employees} answers 201, 400, 401, 403 and 409, and the business always
- * comes from the access token.
+ * HU-17, HU-16/22, HU-20, HU-18 and HU-21 at the web layer: status codes, error bodies, and the business
+ * always comes from the access token.
  */
 @WebMvcTest(EmployeeController.class)
 @Import(SecurityConfig.class)
@@ -80,6 +88,15 @@ class EmployeeControllerTest {
 
 	@MockitoBean
 	private ChangeEmployeeStatusUseCase changeEmployeeStatusUseCase;
+
+	@MockitoBean
+	private GetEmployeeUseCase getEmployeeUseCase;
+
+	@MockitoBean
+	private UpdateEmployeeUseCase updateEmployeeUseCase;
+
+	@MockitoBean
+	private DeleteEmployeeUseCase deleteEmployeeUseCase;
 
 	@MockitoBean
 	private BusinessOwnershipQueryUseCase businessOwnershipQuery;
@@ -327,6 +344,179 @@ class EmployeeControllerTest {
 			.andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.code").value("BUSINESS_REQUIRED"));
 		verify(changeEmployeeStatusUseCase, never()).changeStatus(any(), any(), any());
+	}
+
+	// HU-18: GET and PUT /api/employees/{id}
+
+	@Test
+	void getsTheDetailOfAnEmployeeWithItsServices() throws Exception {
+		given(getEmployeeUseCase.get(USER_ID, EMPLOYEE_ID)).willReturn(new EmployeeDetailResponse(EMPLOYEE_ID, "Carlos",
+				"Gómez", "+573001234567", "carlos@elcorte.com", "ACTIVE", List.of(new EmployeeServiceRef(CUT, "Corte")),
+				Instant.parse("2026-10-01T10:00:00Z"), Instant.parse("2026-10-29T15:00:00Z")));
+
+		mockMvc.perform(get("/api/employees/" + EMPLOYEE_ID).with(userJwt()))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.id").value(EMPLOYEE_ID.toString()))
+			.andExpect(jsonPath("$.email").value("carlos@elcorte.com"))
+			.andExpect(jsonPath("$.services[0].id").value(CUT.toString()))
+			.andExpect(jsonPath("$.services[0].name").value("Corte"))
+			.andExpect(jsonPath("$.updatedAt").value("2026-10-29T15:00:00Z"));
+	}
+
+	@Test
+	void getUnknownEmployeeIsNotFound() throws Exception {
+		given(getEmployeeUseCase.get(USER_ID, EMPLOYEE_ID)).willThrow(new ResourceNotFoundException("Employee not found"));
+
+		mockMvc.perform(get("/api/employees/" + EMPLOYEE_ID).with(userJwt()))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.detail").value("Employee not found"));
+	}
+
+	@Test
+	void getWithMalformedIdIsBadRequest() throws Exception {
+		mockMvc.perform(get("/api/employees/not-a-uuid").with(userJwt()))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors.id").exists());
+		verify(getEmployeeUseCase, never()).get(any(), any());
+	}
+
+	@Test
+	void getWithoutTokenIsUnauthorizedAndWithoutBusinessIsForbidden() throws Exception {
+		mockMvc.perform(get("/api/employees/" + EMPLOYEE_ID)).andExpect(status().isUnauthorized());
+		given(businessOwnershipQuery.ownsBusiness(USER_ID)).willReturn(false);
+		mockMvc.perform(get("/api/employees/" + EMPLOYEE_ID).with(userJwt()))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("BUSINESS_REQUIRED"));
+		verify(getEmployeeUseCase, never()).get(any(), any());
+	}
+
+	@Test
+	void updatesAnEmployeeOfTheCallersBusiness() throws Exception {
+		given(updateEmployeeUseCase.update(eq(USER_ID), eq(EMPLOYEE_ID), any())).willReturn(new EmployeeResponse(
+				EMPLOYEE_ID, "Carlos", "Gómez", "+573001234567", "carlos@elcorte.com", "INACTIVE", List.of(CUT),
+				Instant.parse("2026-10-01T10:00:00Z")));
+
+		mockMvc.perform(update(EMPLOYEE_ID.toString(), VALID_BODY.replace("ACTIVE", "INACTIVE")).with(userJwt()))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.id").value(EMPLOYEE_ID.toString()))
+			.andExpect(jsonPath("$.status").value("INACTIVE"))
+			.andExpect(jsonPath("$.serviceIds[0]").value(CUT.toString()));
+		verify(updateEmployeeUseCase).update(USER_ID, EMPLOYEE_ID, new UpdateEmployeeRequest("Carlos", "Gómez",
+				"+573001234567", "carlos@elcorte.com", "INACTIVE", List.of(CUT)));
+	}
+
+	@Test
+	void updateWithoutServiceIdsPassesNullSoServicesAreKept() throws Exception {
+		mockMvc.perform(update(EMPLOYEE_ID.toString(), "{\"firstName\":\"Carlos\",\"lastName\":\"Gómez\","
+				+ "\"status\":\"ACTIVE\"}").with(userJwt())).andExpect(status().isOk());
+		verify(updateEmployeeUseCase).update(USER_ID, EMPLOYEE_ID,
+				new UpdateEmployeeRequest("Carlos", "Gómez", null, null, "ACTIVE", null));
+	}
+
+	@Test
+	void updateWithInvalidFieldsIsBadRequestWithErrorsPerField() throws Exception {
+		mockMvc.perform(update(EMPLOYEE_ID.toString(), "{\"firstName\":\"\",\"lastName\":\"Gómez\","
+				+ "\"phone\":\"12-34\",\"email\":\"bad\",\"status\":\"DELETED\"}").with(userJwt()))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors.firstName").exists())
+			.andExpect(jsonPath("$.errors.phone").exists())
+			.andExpect(jsonPath("$.errors.email").exists())
+			.andExpect(jsonPath("$.errors.status").value("must be ACTIVE or INACTIVE"));
+		verify(updateEmployeeUseCase, never()).update(any(), any(), any());
+	}
+
+	@Test
+	void updateWithUnavailableServicesIsBadRequestWithRejectedIds() throws Exception {
+		given(updateEmployeeUseCase.update(eq(USER_ID), eq(EMPLOYEE_ID), any()))
+			.willThrow(new InvalidServiceIdsException(List.of(CUT)));
+
+		mockMvc.perform(update(EMPLOYEE_ID.toString(), VALID_BODY).with(userJwt()))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.rejectedIds[0]").value(CUT.toString()))
+			.andExpect(jsonPath("$.errors.serviceIds").exists());
+	}
+
+	@Test
+	void updateWithThePhoneOfAnotherEmployeeIsConflict() throws Exception {
+		given(updateEmployeeUseCase.update(eq(USER_ID), eq(EMPLOYEE_ID), any()))
+			.willThrow(DuplicateEmployeeException.phone());
+
+		mockMvc.perform(update(EMPLOYEE_ID.toString(), VALID_BODY).with(userJwt()))
+			.andExpect(status().isConflict())
+			.andExpect(jsonPath("$.detail").value("Another employee of the business already uses this phone"));
+	}
+
+	@Test
+	void updateOfUnknownEmployeeIsNotFound() throws Exception {
+		given(updateEmployeeUseCase.update(eq(USER_ID), eq(EMPLOYEE_ID), any()))
+			.willThrow(new ResourceNotFoundException("Employee not found"));
+
+		mockMvc.perform(update(EMPLOYEE_ID.toString(), VALID_BODY).with(userJwt()))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.detail").value("Employee not found"));
+	}
+
+	@Test
+	void updateWithoutTokenIsUnauthorizedAndWithoutBusinessIsForbidden() throws Exception {
+		mockMvc.perform(update(EMPLOYEE_ID.toString(), VALID_BODY)).andExpect(status().isUnauthorized());
+		given(businessOwnershipQuery.ownsBusiness(USER_ID)).willReturn(false);
+		mockMvc.perform(update(EMPLOYEE_ID.toString(), VALID_BODY).with(userJwt()))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("BUSINESS_REQUIRED"));
+		verify(updateEmployeeUseCase, never()).update(any(), any(), any());
+	}
+
+	// HU-21: PUT /api/employees/{id}/delete
+
+	@Test
+	void deletesAnEmployeeWithNoContent() throws Exception {
+		mockMvc.perform(delete(EMPLOYEE_ID.toString()).with(userJwt())).andExpect(status().isNoContent());
+		verify(deleteEmployeeUseCase).delete(USER_ID, EMPLOYEE_ID);
+	}
+
+	@Test
+	void deleteWithFutureAppointmentsIsConflictWithTheCount() throws Exception {
+		doThrow(new EmployeeHasFutureAppointmentsException(2)).when(deleteEmployeeUseCase).delete(USER_ID, EMPLOYEE_ID);
+
+		mockMvc.perform(delete(EMPLOYEE_ID.toString()).with(userJwt()))
+			.andExpect(status().isConflict())
+			.andExpect(jsonPath("$.futureAppointments").value(2));
+	}
+
+	@Test
+	void deleteOfUnknownEmployeeIsNotFound() throws Exception {
+		doThrow(new ResourceNotFoundException("Employee not found")).when(deleteEmployeeUseCase)
+			.delete(USER_ID, EMPLOYEE_ID);
+
+		mockMvc.perform(delete(EMPLOYEE_ID.toString()).with(userJwt()))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.detail").value("Employee not found"));
+	}
+
+	@Test
+	void deleteWithMalformedIdIsBadRequest() throws Exception {
+		mockMvc.perform(delete("not-a-uuid").with(userJwt()))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors.id").exists());
+		verify(deleteEmployeeUseCase, never()).delete(any(), any());
+	}
+
+	@Test
+	void deleteWithoutTokenIsUnauthorizedAndWithoutBusinessIsForbidden() throws Exception {
+		mockMvc.perform(delete(EMPLOYEE_ID.toString())).andExpect(status().isUnauthorized());
+		given(businessOwnershipQuery.ownsBusiness(USER_ID)).willReturn(false);
+		mockMvc.perform(delete(EMPLOYEE_ID.toString()).with(userJwt()))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("BUSINESS_REQUIRED"));
+		verify(deleteEmployeeUseCase, never()).delete(any(), any());
+	}
+
+	private static MockHttpServletRequestBuilder update(String id, String body) {
+		return put("/api/employees/" + id).contentType(MediaType.APPLICATION_JSON).content(body);
+	}
+
+	private static MockHttpServletRequestBuilder delete(String id) {
+		return put("/api/employees/" + id + "/delete");
 	}
 
 	private static MockHttpServletRequestBuilder changeStatus(String id, String body) {

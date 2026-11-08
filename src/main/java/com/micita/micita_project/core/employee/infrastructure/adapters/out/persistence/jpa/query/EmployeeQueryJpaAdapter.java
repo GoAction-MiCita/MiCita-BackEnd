@@ -47,6 +47,18 @@ public class EmployeeQueryJpaAdapter implements EmployeeQueryRepositoryPort {
 	}
 
 	@Override
+	public boolean existsByEmailExcept(UUID businessId, String email, UUID employeeId) {
+		return employeeJpaRepository.existsByBusinessIdAndEmailAndStatusNotAndIdNot(businessId, email,
+				EmployeeStatus.DELETED, employeeId);
+	}
+
+	@Override
+	public boolean existsByPhoneExcept(UUID businessId, String phone, UUID employeeId) {
+		return employeeJpaRepository.existsByBusinessIdAndPhoneAndStatusNotAndIdNot(businessId, phone,
+				EmployeeStatus.DELETED, employeeId);
+	}
+
+	@Override
 	public Optional<Employee> findOfBusiness(UUID businessId, UUID employeeId) {
 		return employeeJpaRepository.findByIdAndBusinessIdAndStatusNot(employeeId, businessId, EmployeeStatus.DELETED)
 			.map(employeeBDMapper::toDomain);

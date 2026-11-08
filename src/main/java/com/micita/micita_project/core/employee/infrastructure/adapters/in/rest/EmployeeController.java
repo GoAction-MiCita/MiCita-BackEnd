@@ -8,11 +8,16 @@ import com.micita.micita_project.common.shared.security.CurrentUserId;
 import com.micita.micita_project.core.employee.application.dto.request.ChangeEmployeeStatusRequest;
 import com.micita.micita_project.core.employee.application.dto.request.CreateEmployeeRequest;
 import com.micita.micita_project.core.employee.application.dto.request.EmployeeListFilter;
+import com.micita.micita_project.core.employee.application.dto.request.UpdateEmployeeRequest;
+import com.micita.micita_project.core.employee.application.dto.response.EmployeeDetailResponse;
 import com.micita.micita_project.core.employee.application.dto.response.EmployeeListItemResponse;
 import com.micita.micita_project.core.employee.application.dto.response.EmployeeResponse;
 import com.micita.micita_project.core.employee.application.ports.in.ChangeEmployeeStatusUseCase;
 import com.micita.micita_project.core.employee.application.ports.in.CreateEmployeeUseCase;
+import com.micita.micita_project.core.employee.application.ports.in.DeleteEmployeeUseCase;
+import com.micita.micita_project.core.employee.application.ports.in.GetEmployeeUseCase;
 import com.micita.micita_project.core.employee.application.ports.in.ListEmployeesUseCase;
+import com.micita.micita_project.core.employee.application.ports.in.UpdateEmployeeUseCase;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -30,6 +35,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -47,6 +53,12 @@ public class EmployeeController {
 	private final ListEmployeesUseCase listEmployeesUseCase;
 
 	private final ChangeEmployeeStatusUseCase changeEmployeeStatusUseCase;
+
+	private final GetEmployeeUseCase getEmployeeUseCase;
+
+	private final UpdateEmployeeUseCase updateEmployeeUseCase;
+
+	private final DeleteEmployeeUseCase deleteEmployeeUseCase;
 
 	@GetMapping
 	@Operation(summary = "List the employees of the caller's business",
@@ -110,6 +122,66 @@ public class EmployeeController {
 			@Parameter(description = "Employee id") @PathVariable UUID id,
 			@Valid @RequestBody ChangeEmployeeStatusRequest request) {
 		return changeEmployeeStatusUseCase.changeStatus(CurrentUserId.from(jwt), id, request);
+	}
+
+	@GetMapping("/{id}")
+	@Operation(summary = "Get an employee",
+			description = "Detail of an employee of the caller's business with the non-deleted services they provide")
+	@ApiResponse(responseCode = "200", description = "Employee detail")
+	@ApiResponse(responseCode = "400", description = "The id is malformed (errors map)",
+			content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+	@ApiResponse(responseCode = "401", description = "Missing, invalid or expired access token")
+	@ApiResponse(responseCode = "404",
+			description = "The employee doesn't exist, belongs to another business or is deleted",
+			content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+	public EmployeeDetailResponse get(@Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
+			@Parameter(description = "Employee id") @PathVariable UUID id) {
+		return getEmployeeUseCase.get(CurrentUserId.from(jwt), id);
+	}
+
+	@PutMapping("/{id}")
+	@Operation(summary = "Update an employee",
+			description = "Replaces the data of an employee of the caller's business, status included (ACTIVE or "
+					+ "INACTIVE), with the same rules as registration. If serviceIds is sent it replaces the whole "
+					+ "assignment (an empty list removes every service); leaving it out keeps the current services. "
+					+ "Existing appointments keep their own copy of the employee's data")
+	@ApiResponse(responseCode = "200", description = "Employee updated")
+	@ApiResponse(responseCode = "400",
+			description = "Missing or invalid fields or a malformed id (errors map), or serviceIds with unknown, "
+					+ "deleted or foreign services (listed in rejectedIds). Nothing is stored",
+			content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+	@ApiResponse(responseCode = "401", description = "Missing, invalid or expired access token")
+	@ApiResponse(responseCode = "404",
+			description = "The employee doesn't exist, belongs to another business or is deleted",
+			content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+	@ApiResponse(responseCode = "409", description = "Another employee of the business uses the email or phone",
+			content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+	public EmployeeResponse update(@Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
+			@Parameter(description = "Employee id") @PathVariable UUID id,
+			@Valid @RequestBody UpdateEmployeeRequest request) {
+		return updateEmployeeUseCase.update(CurrentUserId.from(jwt), id, request);
+	}
+
+	@PutMapping("/{id}/delete")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	@Operation(summary = "Delete an employee",
+			description = "Soft delete: the employee becomes DELETED and is kept, together with its service "
+					+ "assignments, because past appointments reference it. It then drops out of every listing, "
+					+ "can't be booked, and its email and phone can be reused. Employees with future appointments "
+					+ "can't be deleted; deactivate them instead")
+	@ApiResponse(responseCode = "204", description = "Employee deleted")
+	@ApiResponse(responseCode = "400", description = "The id is malformed (errors map)",
+			content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+	@ApiResponse(responseCode = "401", description = "Missing, invalid or expired access token")
+	@ApiResponse(responseCode = "404",
+			description = "The employee doesn't exist, belongs to another business or is already deleted",
+			content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+	@ApiResponse(responseCode = "409",
+			description = "The employee has future appointments (count in futureAppointments)",
+			content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+	public void delete(@Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
+			@Parameter(description = "Employee id") @PathVariable UUID id) {
+		deleteEmployeeUseCase.delete(CurrentUserId.from(jwt), id);
 	}
 
 }

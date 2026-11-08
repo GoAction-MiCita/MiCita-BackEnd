@@ -2,7 +2,6 @@ package com.micita.micita_project.core.employee.application.command;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
@@ -45,11 +44,8 @@ public class CreateEmployeeCommandHandler implements CreateEmployeeUseCase {
 	@Transactional
 	public EmployeeResponse create(UUID ownerId, CreateEmployeeRequest request) {
 		UUID businessId = businessQuery.requireBusinessIdOf(ownerId);
-		String email = optional(request.email());
-		if (email != null) {
-			email = email.toLowerCase(Locale.ROOT);
-		}
-		String phone = optional(request.phone());
+		String email = EmployeeInput.email(request.email());
+		String phone = EmployeeInput.optional(request.phone());
 		// No partial unique index without migrations (D-23), so the check is in the application.
 		if (email != null && employeeQueryRepository.existsByEmail(businessId, email)) {
 			throw DuplicateEmployeeException.email();
@@ -62,11 +58,6 @@ public class CreateEmployeeCommandHandler implements CreateEmployeeUseCase {
 		Set<UUID> serviceIds = request.serviceIds() == null || request.serviceIds().isEmpty() ? Set.of()
 				: employeeServices.replaceServices(businessId, employee.id(), request.serviceIds());
 		return employeeMapper.toResponse(employee, serviceIds);
-	}
-
-	/** Optional fields sent blank are stored as absent. */
-	private static String optional(String value) {
-		return value == null || value.isBlank() ? null : value.trim();
 	}
 
 }

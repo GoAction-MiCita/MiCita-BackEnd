@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project state
 
-MiCita backend: the Spring Boot REST API for an appointment-booking product. Cross-cutting infrastructure is in place: hexagonal package layout, JWT login, error handling, Swagger, profiles, and test/coverage tooling. Implemented modules: `auth` (HU-01, HU-02), `business` (onboarding, HU-03/HU-04) and `employee` (registration, listing, filters and activation, HU-17/HU-16/HU-22/HU-20). `service` so far only has the `services` table and the `service_employees` association (ADR-002); its endpoints (HU-09, HU-12) are pending.
+MiCita backend: the Spring Boot REST API for an appointment-booking product. Cross-cutting infrastructure is in place: hexagonal package layout, JWT login, error handling, Swagger, profiles, and test/coverage tooling. Implemented modules: `auth` (HU-01, HU-02), `business` (onboarding, HU-03/HU-04) and `employee` (registration, listing, filters, activation, detail/edit and soft delete, HU-17/HU-16/HU-22/HU-20/HU-18/HU-21). `service` so far only has the `services` table and the `service_employees` association (ADR-002); its endpoints (HU-09, HU-12) are pending.
 
 
 ## Stack
@@ -161,6 +161,14 @@ Implemented today:
     - The body's `status` only accepts `ACTIVE` or `INACTIVE`; `DELETED` (that's HU-21) or anything else gives 400 with `errors.status`.
     - Unknown, foreign or deleted employees give 404 (`ResourceNotFoundException`). Sending the current status is a no-op: nothing is saved and `updatedAt` stays.
     - Service assignments and Firestore are not touched; an `INACTIVE` employee simply drops out of `BookableEmployeesQueryPort`.
+  - `GET /api/employees/{id}` (HU-18) returns an `EmployeeDetailResponse`: the employee, its non-deleted `services` (`id`, `name`), `createdAt` and `updatedAt`. Unknown, foreign or deleted employees give 404.
+  - `PUT /api/employees/{id}` (HU-18) replaces the employee's data, status included (`ACTIVE`/`INACTIVE`), with the HU-17 rules (`UpdateEmployeeRequest`), and returns an `EmployeeResponse`.
+    - The duplicate check ignores the employee itself (`existsByEmailExcept`/`existsByPhoneExcept`), so keeping its own email or phone is not a 409.
+    - `serviceIds` replaces the whole assignment through `AssignEmployeeServicesUseCase`: `[]` removes every service, and **leaving it out keeps the current ones**. Unknown, foreign or deleted services give 400 with `rejectedIds` and the whole edit rolls back.
+    - Appointments in Firestore keep their own snapshot, so editing doesn't touch them.
+  - `PUT /api/employees/{id}/delete` (HU-21; the route was chosen over `DELETE /api/employees/{id}`) is a soft delete: 204, the status becomes `DELETED`, and the row and its `service_employees` rows are kept. Every query already leaves deleted employees out, so they drop out of listings, the detail gives 404 and their email and phone can be reused.
+    - Employees with future appointments give 409 with a `futureAppointments` count (`EmployeeHasFutureAppointmentsException`). The count comes from `FutureAppointmentsQueryPort`; in F1 `NoFutureAppointmentsAdapter` always answers 0, and F2 replaces it with the Firestore adapter.
+    - `ConflictException` can carry extra `properties`, which `GlobalExceptionHandler` adds to the 409 `ProblemDetail`.
   - `EmployeeQueryUseCase.findAssignableIds` is the port the service module will use to validate `employeeIds` (HU-12). `BookableEmployeesQueryPort.findBookableIds` returns only `ACTIVE` employees, for F2.
 - Sessions (HU-02). Access tokens last 15 min (`JWT_EXPIRATION`) and refresh tokens 7 days (`JWT_REFRESH_EXPIRATION`).
   - Login, and every refresh, goes through `SessionTokensIssuer`, which issues an access token plus an opaque refresh token (256 random bits).

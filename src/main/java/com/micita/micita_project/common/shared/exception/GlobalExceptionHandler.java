@@ -78,7 +78,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
 	@ExceptionHandler(ConflictException.class)
 	ProblemDetail handleConflict(ConflictException ex) {
-		return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+		ex.getProperties().forEach(problem::setProperty);
+		return problem;
 	}
 
 	@ExceptionHandler(UnauthorizedException.class)

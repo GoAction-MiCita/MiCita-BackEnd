@@ -19,6 +19,12 @@ public interface EmployeeJpaRepository
 
 	boolean existsByBusinessIdAndPhoneAndStatusNot(UUID businessId, String phone, EmployeeStatus status);
 
+	boolean existsByBusinessIdAndEmailAndStatusNotAndIdNot(UUID businessId, String email, EmployeeStatus status,
+			UUID id);
+
+	boolean existsByBusinessIdAndPhoneAndStatusNotAndIdNot(UUID businessId, String phone, EmployeeStatus status,
+			UUID id);
+
 	Optional<EmployeeEntity> findByIdAndBusinessIdAndStatusNot(UUID id, UUID businessId, EmployeeStatus status);
 
 	@Query("select e.id from EmployeeEntity e where e.businessId = :businessId and e.id in :ids and e.status <> :excluded")
