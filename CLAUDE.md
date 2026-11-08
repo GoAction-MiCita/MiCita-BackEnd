@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project state
 
-MiCita backend: the Spring Boot REST API for an appointment-booking product. Cross-cutting infrastructure is in place: hexagonal package layout, JWT login, error handling, Swagger, profiles, and test/coverage tooling. Implemented modules: `auth` (HU-01, HU-02), `business` (onboarding, HU-03/HU-04) and `employee` (registration, listing and filters, HU-17/HU-16/HU-22). `service` so far only has the `services` table and the `service_employees` association (ADR-002); its endpoints (HU-09, HU-12) are pending.
+MiCita backend: the Spring Boot REST API for an appointment-booking product. Cross-cutting infrastructure is in place: hexagonal package layout, JWT login, error handling, Swagger, profiles, and test/coverage tooling. Implemented modules: `auth` (HU-01, HU-02), `business` (onboarding, HU-03/HU-04) and `employee` (registration, listing, filters and activation, HU-17/HU-16/HU-22/HU-20). `service` so far only has the `services` table and the `service_employees` association (ADR-002); its endpoints (HU-09, HU-12) are pending.
 
 
 ## Stack
@@ -157,6 +157,10 @@ Implemented today:
     - `name`: contained in the first or last name, ignoring case. Accents are not normalized and LIKE wildcards are escaped. Over 100 characters gives 400.
     - `status`: `ACTIVE` or `INACTIVE`, uppercase only. Anything else (`DELETED`, `active`) gives 400 with `errors.status`.
     - `serviceIds` (comma-separated or repeated): employees that provide at least one of them, resolved through `EmployeeServicesQueryUseCase.findEmployeeIdsProviding`. Unknown, foreign or deleted services give 400 with `rejectedIds`, and a malformed UUID gives 400 with `errors.serviceIds` (`GlobalExceptionHandler.handleTypeMismatch`).
+  - `PATCH /api/employees/{id}/status` (HU-20) switches an employee between `ACTIVE` and `INACTIVE` and returns the `EmployeeResponse` with its non-deleted `serviceIds`.
+    - The body's `status` only accepts `ACTIVE` or `INACTIVE`; `DELETED` (that's HU-21) or anything else gives 400 with `errors.status`.
+    - Unknown, foreign or deleted employees give 404 (`ResourceNotFoundException`). Sending the current status is a no-op: nothing is saved and `updatedAt` stays.
+    - Service assignments and Firestore are not touched; an `INACTIVE` employee simply drops out of `BookableEmployeesQueryPort`.
   - `EmployeeQueryUseCase.findAssignableIds` is the port the service module will use to validate `employeeIds` (HU-12). `BookableEmployeesQueryPort.findBookableIds` returns only `ACTIVE` employees, for F2.
 - Sessions (HU-02). Access tokens last 15 min (`JWT_EXPIRATION`) and refresh tokens 7 days (`JWT_REFRESH_EXPIRATION`).
   - Login, and every refresh, goes through `SessionTokensIssuer`, which issues an access token plus an opaque refresh token (256 random bits).

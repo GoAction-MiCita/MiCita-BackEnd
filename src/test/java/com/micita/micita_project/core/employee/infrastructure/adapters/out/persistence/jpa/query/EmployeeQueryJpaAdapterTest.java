@@ -5,6 +5,7 @@ import static org.mockito.BDDMockito.given;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -60,6 +61,20 @@ class EmployeeQueryJpaAdapterTest {
 		assertThat(adapter.existsByEmail(BUSINESS_ID, "carlos@elcorte.com")).isTrue();
 		assertThat(adapter.existsByPhone(BUSINESS_ID, "+573001234567")).isTrue();
 		assertThat(adapter.existsByEmail(BUSINESS_ID, "other@elcorte.com")).isFalse();
+	}
+
+	@Test
+	void findOfBusinessIgnoresDeletedEmployeesAndOtherBusinesses() {
+		UUID employeeId = UUID.randomUUID();
+		EmployeeEntity entity = new EmployeeEntity();
+		Employee employee = new Employee(employeeId, BUSINESS_ID, "Carlos", "Gómez", null, null, EmployeeStatus.ACTIVE,
+				Instant.now(), Instant.now());
+		given(employeeJpaRepository.findByIdAndBusinessIdAndStatusNot(employeeId, BUSINESS_ID, EmployeeStatus.DELETED))
+			.willReturn(Optional.of(entity));
+		given(employeeBDMapper.toDomain(entity)).willReturn(employee);
+
+		assertThat(adapter.findOfBusiness(BUSINESS_ID, employeeId)).contains(employee);
+		assertThat(adapter.findOfBusiness(UUID.randomUUID(), employeeId)).isEmpty();
 	}
 
 	@Test

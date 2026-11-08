@@ -15,4 +15,12 @@ public record Employee(UUID id, UUID businessId, String firstName, String lastNa
 		return new Employee(null, businessId, firstName, lastName, phone, email, status, now, now);
 	}
 
+	/**
+	 * @return a copy with {@code status} and {@code updatedAt} changed; everything else, including the id
+	 * and the creation time, is kept
+	 */
+	public Employee withStatus(EmployeeStatus status, Instant now) {
+		return new Employee(id, businessId, firstName, lastName, phone, email, status, createdAt, now);
+	}
+
 }

@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -43,6 +44,12 @@ public class EmployeeQueryJpaAdapter implements EmployeeQueryRepositoryPort {
 	@Override
 	public boolean existsByPhone(UUID businessId, String phone) {
 		return employeeJpaRepository.existsByBusinessIdAndPhoneAndStatusNot(businessId, phone, EmployeeStatus.DELETED);
+	}
+
+	@Override
+	public Optional<Employee> findOfBusiness(UUID businessId, UUID employeeId) {
+		return employeeJpaRepository.findByIdAndBusinessIdAndStatusNot(employeeId, businessId, EmployeeStatus.DELETED)
+			.map(employeeBDMapper::toDomain);
 	}
 
 	@Override

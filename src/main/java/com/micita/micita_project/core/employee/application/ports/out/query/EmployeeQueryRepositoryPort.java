@@ -1,6 +1,7 @@
 package com.micita.micita_project.core.employee.application.ports.out.query;
 
 import java.util.Collection;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -16,6 +17,11 @@ public interface EmployeeQueryRepositoryPort {
 	boolean existsByEmail(UUID businessId, String email);
 
 	boolean existsByPhone(UUID businessId, String phone);
+
+	/**
+	 * @return the employee if it belongs to the business and is not deleted
+	 */
+	Optional<Employee> findOfBusiness(UUID businessId, UUID employeeId);
 
 	Set<UUID> findAssignableIds(UUID businessId, Collection<UUID> employeeIds);
 

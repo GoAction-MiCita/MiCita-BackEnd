@@ -8,6 +8,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -18,13 +19,16 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.micita.micita_project.common.shared.exception.InvalidPageRequestException;
+import com.micita.micita_project.common.shared.exception.ResourceNotFoundException;
 import com.micita.micita_project.common.shared.pagination.PageResponse;
 import com.micita.micita_project.common.shared.security.SecurityConfig;
 import com.micita.micita_project.core.business.application.ports.in.BusinessOwnershipQueryUseCase;
+import com.micita.micita_project.core.employee.application.dto.request.ChangeEmployeeStatusRequest;
 import com.micita.micita_project.core.employee.application.dto.request.CreateEmployeeRequest;
 import com.micita.micita_project.core.employee.application.dto.request.EmployeeListFilter;
 import com.micita.micita_project.core.employee.application.dto.response.EmployeeListItemResponse;
 import com.micita.micita_project.core.employee.application.dto.response.EmployeeResponse;
+import com.micita.micita_project.core.employee.application.ports.in.ChangeEmployeeStatusUseCase;
 import com.micita.micita_project.core.employee.application.ports.in.CreateEmployeeUseCase;
 import com.micita.micita_project.core.employee.application.ports.in.ListEmployeesUseCase;
 import com.micita.micita_project.core.employee.domain.exceptions.DuplicateEmployeeException;
@@ -73,6 +77,9 @@ class EmployeeControllerTest {
 
 	@MockitoBean
 	private ListEmployeesUseCase listEmployeesUseCase;
+
+	@MockitoBean
+	private ChangeEmployeeStatusUseCase changeEmployeeStatusUseCase;
 
 	@MockitoBean
 	private BusinessOwnershipQueryUseCase businessOwnershipQuery;
@@ -259,6 +266,71 @@ class EmployeeControllerTest {
 			.andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.code").value("BUSINESS_REQUIRED"));
 		verify(listEmployeesUseCase, never()).list(any(), any(), anyInt(), anyInt());
+	}
+
+	// HU-20: PATCH /api/employees/{id}/status
+
+	@Test
+	void changesStatusOfAnEmployeeOfTheCallersBusiness() throws Exception {
+		given(changeEmployeeStatusUseCase.changeStatus(USER_ID, EMPLOYEE_ID, new ChangeEmployeeStatusRequest("INACTIVE")))
+			.willReturn(new EmployeeResponse(EMPLOYEE_ID, "Carlos", "Gómez", null, null, "INACTIVE", List.of(CUT),
+					Instant.parse("2026-10-29T15:00:00Z")));
+
+		mockMvc.perform(changeStatus(EMPLOYEE_ID.toString(), "{\"status\":\"INACTIVE\"}").with(userJwt()))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.id").value(EMPLOYEE_ID.toString()))
+			.andExpect(jsonPath("$.status").value("INACTIVE"))
+			.andExpect(jsonPath("$.serviceIds[0]").value(CUT.toString()));
+	}
+
+	@Test
+	void deletedOrUnknownStatusIsBadRequestWithErrorsMap() throws Exception {
+		for (String body : List.of("{\"status\":\"DELETED\"}", "{\"status\":\"active\"}", "{\"status\":\"PAUSED\"}",
+				"{}")) {
+			mockMvc.perform(changeStatus(EMPLOYEE_ID.toString(), body).with(userJwt()))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errors.status").exists());
+		}
+		verify(changeEmployeeStatusUseCase, never()).changeStatus(any(), any(), any());
+	}
+
+	@Test
+	void malformedEmployeeIdIsBadRequest() throws Exception {
+		mockMvc.perform(changeStatus("not-a-uuid", "{\"status\":\"ACTIVE\"}").with(userJwt()))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors.id").exists());
+		verify(changeEmployeeStatusUseCase, never()).changeStatus(any(), any(), any());
+	}
+
+	@Test
+	void unknownEmployeeIsNotFound() throws Exception {
+		given(changeEmployeeStatusUseCase.changeStatus(eq(USER_ID), eq(EMPLOYEE_ID), any()))
+			.willThrow(new ResourceNotFoundException("Employee not found"));
+
+		mockMvc.perform(changeStatus(EMPLOYEE_ID.toString(), "{\"status\":\"ACTIVE\"}").with(userJwt()))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.detail").value("Employee not found"));
+	}
+
+	@Test
+	void changeStatusWithoutTokenIsUnauthorized() throws Exception {
+		mockMvc.perform(changeStatus(EMPLOYEE_ID.toString(), "{\"status\":\"ACTIVE\"}"))
+			.andExpect(status().isUnauthorized());
+		verify(changeEmployeeStatusUseCase, never()).changeStatus(any(), any(), any());
+	}
+
+	@Test
+	void changeStatusWithoutBusinessIsForbidden() throws Exception {
+		given(businessOwnershipQuery.ownsBusiness(USER_ID)).willReturn(false);
+
+		mockMvc.perform(changeStatus(EMPLOYEE_ID.toString(), "{\"status\":\"ACTIVE\"}").with(userJwt()))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("BUSINESS_REQUIRED"));
+		verify(changeEmployeeStatusUseCase, never()).changeStatus(any(), any(), any());
+	}
+
+	private static MockHttpServletRequestBuilder changeStatus(String id, String body) {
+		return patch("/api/employees/" + id + "/status").contentType(MediaType.APPLICATION_JSON).content(body);
 	}
 
 	private static MockHttpServletRequestBuilder create(String body) {
