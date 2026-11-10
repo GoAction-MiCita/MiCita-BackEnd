@@ -34,4 +34,13 @@ class ServiceQueryJpaAdapterTest {
 		assertThat(adapter.findAssignableIds(businessId, List.of(serviceId))).containsExactly(serviceId);
 	}
 
+	@Test
+	void nameLookupSkipsDeletedServices() {
+		UUID businessId = UUID.randomUUID();
+		given(serviceJpaRepository.existsByName(businessId, "Corte", ServiceStatus.DELETED)).willReturn(true);
+
+		assertThat(adapter.existsByName(businessId, "Corte")).isTrue();
+		assertThat(adapter.existsByName(businessId, "Otro")).isFalse();
+	}
+
 }

@@ -21,6 +21,10 @@ public interface ServiceEmployeeJpaRepository extends JpaRepository<ServiceEmplo
 	@Query("delete from ServiceEmployeeEntity se where se.employeeId = :employeeId")
 	void deleteByEmployeeId(UUID employeeId);
 
+	@Modifying(flushAutomatically = true, clearAutomatically = true)
+	@Query("delete from ServiceEmployeeEntity se where se.serviceId = :serviceId")
+	void deleteByServiceId(UUID serviceId);
+
 	@Query("select new com.micita.micita_project.core.service.domain.models.ServiceAssignment(se.employeeId, s.id, s.name) "
 			+ "from ServiceEmployeeEntity se, ServiceEntity s "
 			+ "where s.id = se.serviceId and s.businessId = :businessId and se.employeeId in :employeeIds "

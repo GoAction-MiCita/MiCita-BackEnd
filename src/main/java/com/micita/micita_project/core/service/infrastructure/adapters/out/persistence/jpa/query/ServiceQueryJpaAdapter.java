@@ -22,4 +22,9 @@ public class ServiceQueryJpaAdapter implements ServiceQueryRepositoryPort {
 		return serviceJpaRepository.findIdsOfBusiness(businessId, serviceIds, ServiceStatus.DELETED);
 	}
 
+	@Override
+	public boolean existsByName(UUID businessId, String name) {
+		return serviceJpaRepository.existsByName(businessId, name, ServiceStatus.DELETED);
+	}
+
 }

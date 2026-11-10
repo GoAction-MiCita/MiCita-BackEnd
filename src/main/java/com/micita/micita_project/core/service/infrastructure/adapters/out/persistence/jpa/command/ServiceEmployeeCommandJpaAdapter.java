@@ -23,4 +23,11 @@ public class ServiceEmployeeCommandJpaAdapter implements ServiceEmployeeCommandR
 			.saveAll(serviceIds.stream().map(serviceId -> new ServiceEmployeeEntity(serviceId, employeeId)).toList());
 	}
 
+	@Override
+	public void replaceEmployeesOfService(UUID serviceId, Set<UUID> employeeIds) {
+		serviceEmployeeJpaRepository.deleteByServiceId(serviceId);
+		serviceEmployeeJpaRepository
+			.saveAll(employeeIds.stream().map(employeeId -> new ServiceEmployeeEntity(serviceId, employeeId)).toList());
+	}
+
 }

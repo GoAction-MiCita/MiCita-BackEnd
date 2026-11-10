@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project state
 
-MiCita backend: the Spring Boot REST API for an appointment-booking product. Cross-cutting infrastructure is in place: hexagonal package layout, JWT login, error handling, Swagger, profiles, and test/coverage tooling. Implemented modules: `auth` (HU-01, HU-02), `business` (onboarding, HU-03/HU-04) and `employee` (registration, listing, filters, activation, detail/edit and soft delete, HU-17/HU-16/HU-22/HU-20/HU-18/HU-21). `service` so far only has the `services` table and the `service_employees` association (ADR-002); its endpoints (HU-09, HU-12) are pending.
+MiCita backend: the Spring Boot REST API for an appointment-booking product. Cross-cutting infrastructure is in place: hexagonal package layout, JWT login, error handling, Swagger, profiles, and test/coverage tooling. Implemented modules: `auth` (HU-01, HU-02), `business` (onboarding, HU-03/HU-04) and `employee` (registration, listing, filters, activation, detail/edit and soft delete, HU-17/HU-16/HU-22/HU-20/HU-18/HU-21). `service` has the `services` table, the `service_employees` association (ADR-002) and service registration (HU-09); its other endpoints (HU-12 and the rest of E02) are pending.
 
 
 ## Stack
@@ -169,7 +169,11 @@ Implemented today:
   - `PUT /api/employees/{id}/delete` (HU-21; the route was chosen over `DELETE /api/employees/{id}`) is a soft delete: 204, the status becomes `DELETED`, and the row and its `service_employees` rows are kept. Every query already leaves deleted employees out, so they drop out of listings, the detail gives 404 and their email and phone can be reused.
     - Employees with future appointments give 409 with a `futureAppointments` count (`EmployeeHasFutureAppointmentsException`). The count comes from `FutureAppointmentsQueryPort`; in F1 `NoFutureAppointmentsAdapter` always answers 0, and F2 replaces it with the Firestore adapter.
     - `ConflictException` can carry extra `properties`, which `GlobalExceptionHandler` adds to the 409 `ProblemDetail`.
-  - `EmployeeQueryUseCase.findAssignableIds` is the port the service module will use to validate `employeeIds` (HU-12). `BookableEmployeesQueryPort.findBookableIds` returns only `ACTIVE` employees, for F2.
+  - `EmployeeQueryUseCase.findAssignableIds` is the port the service module uses to validate `employeeIds` (HU-09, HU-12). `BookableEmployeesQueryPort.findBookableIds` returns only `ACTIVE` employees, for F2.
+- Services (HU-09). `POST /api/services` creates a service in the caller's business (`services`, `ACTIVE`/`INACTIVE`; `DELETED` is the soft delete). `name` and `status` are required; `description` (max 255), `durationMinutes` (> 0), `price` (COP, ≥ 0, 2 decimals) and `employeeIds` are optional. The domain model is `Service` (`core/service/domain/models`), so the Spring stereotype is written fully qualified in `CreateServiceCommandHandler`.
+  - The name (trimmed) must not be used, ignoring case, by another non-deleted service of the business (409 `DuplicateServiceException`). The check lives in the use case: the partial unique index waits for migrations, so two concurrent requests can still slip through.
+  - `employeeIds` are written to `service_employees` only through `AssignServiceEmployeesUseCase` (the service module owns that table, ADR-002), in the same transaction. HU-12 can reuse it. Employees are validated through the employee module's `EmployeeQueryUseCase.findAssignableIds` (`ServiceEmployeeQueryModuleAdapter`): unknown, foreign or `DELETED` employees give 400 with `rejectedIds` (`InvalidEmployeeIdsException`) and nothing is stored. `INACTIVE` employees can be assigned.
+  - The business comes from `BusinessOwnershipQueryUseCase.requireBusinessIdOf(uid)` through `ServiceBusinessQueryAdapter`, never from the body.
 - Sessions (HU-02). Access tokens last 15 min (`JWT_EXPIRATION`) and refresh tokens 7 days (`JWT_REFRESH_EXPIRATION`).
   - Login, and every refresh, goes through `SessionTokensIssuer`, which issues an access token plus an opaque refresh token (256 random bits).
   - Only the token's SHA-256 is stored, in `refresh_tokens`. It's looked up by that hash, so it is deliberately not BCrypt.

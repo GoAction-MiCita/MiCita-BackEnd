@@ -11,4 +11,9 @@ public interface ServiceQueryRepositoryPort {
 	 */
 	Set<UUID> findAssignableIds(UUID businessId, Collection<UUID> serviceIds);
 
+	/**
+	 * @return whether a non-deleted service of the business already has {@code name}, ignoring case
+	 */
+	boolean existsByName(UUID businessId, String name);
+
 }

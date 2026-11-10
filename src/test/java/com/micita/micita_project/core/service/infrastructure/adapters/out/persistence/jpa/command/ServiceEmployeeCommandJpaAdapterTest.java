@@ -46,6 +46,24 @@ class ServiceEmployeeCommandJpaAdapterTest {
 	}
 
 	@Test
+	@SuppressWarnings("unchecked")
+	void replacingEmployeesOfAServiceDeletesTheOldRowsBeforeSavingTheNewOnes() {
+		UUID serviceId = UUID.randomUUID();
+		UUID employeeId = UUID.randomUUID();
+
+		adapter.replaceEmployeesOfService(serviceId, Set.of(employeeId));
+
+		InOrder order = inOrder(serviceEmployeeJpaRepository);
+		order.verify(serviceEmployeeJpaRepository).deleteByServiceId(serviceId);
+		ArgumentCaptor<List<ServiceEmployeeEntity>> rows = ArgumentCaptor.forClass(List.class);
+		order.verify(serviceEmployeeJpaRepository).saveAll(rows.capture());
+		assertThat(rows.getValue()).singleElement().satisfies(row -> {
+			assertThat(row.getServiceId()).isEqualTo(serviceId);
+			assertThat(row.getEmployeeId()).isEqualTo(employeeId);
+		});
+	}
+
+	@Test
 	void compositeKeysWithTheSameIdsAreEqual() {
 		UUID serviceId = UUID.randomUUID();
 		UUID employeeId = UUID.randomUUID();

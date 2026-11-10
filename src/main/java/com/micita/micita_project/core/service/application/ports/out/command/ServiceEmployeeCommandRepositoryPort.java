@@ -7,4 +7,6 @@ public interface ServiceEmployeeCommandRepositoryPort {
 
 	void replaceServicesOfEmployee(UUID employeeId, Set<UUID> serviceIds);
 
+	void replaceEmployeesOfService(UUID serviceId, Set<UUID> employeeIds);
+
 }
