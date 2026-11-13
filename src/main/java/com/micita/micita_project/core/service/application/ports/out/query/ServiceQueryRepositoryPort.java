@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import com.micita.micita_project.common.shared.pagination.PageResponse;
 import com.micita.micita_project.core.service.domain.models.Service;
+import com.micita.micita_project.core.service.domain.models.ServiceCriteria;
 
 public interface ServiceQueryRepositoryPort {
 
@@ -20,8 +21,9 @@ public interface ServiceQueryRepositoryPort {
 	boolean existsByName(UUID businessId, String name);
 
 	/**
-	 * Services of the business that are not deleted, by name ignoring case (then by id).
+	 * Services of the business that are not deleted and match {@code criteria}, by name ignoring case (then
+	 * by id). The page totals count only the matching services.
 	 */
-	PageResponse<Service> findPageOfBusiness(UUID businessId, int page, int size);
+	PageResponse<Service> findPageOfBusiness(UUID businessId, ServiceCriteria criteria, int page, int size);
 
 }

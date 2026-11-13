@@ -1,5 +1,6 @@
 package com.micita.micita_project.core.service.application.query;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -10,6 +11,7 @@ import java.util.UUID;
 
 import com.micita.micita_project.common.shared.exception.InvalidPageRequestException;
 import com.micita.micita_project.common.shared.pagination.PageResponse;
+import com.micita.micita_project.core.service.application.dto.request.ServiceListFilter;
 import com.micita.micita_project.core.service.application.dto.response.ServiceEmployeeResponse;
 import com.micita.micita_project.core.service.application.dto.response.ServiceListItemResponse;
 import com.micita.micita_project.core.service.application.ports.in.ListServicesUseCase;
@@ -17,8 +19,11 @@ import com.micita.micita_project.core.service.application.ports.out.query.Busine
 import com.micita.micita_project.core.service.application.ports.out.query.EmployeeQueryPort;
 import com.micita.micita_project.core.service.application.ports.out.query.ServiceEmployeeQueryRepositoryPort;
 import com.micita.micita_project.core.service.application.ports.out.query.ServiceQueryRepositoryPort;
+import com.micita.micita_project.core.service.domain.exceptions.InvalidEmployeeIdsException;
 import com.micita.micita_project.core.service.domain.models.Service;
+import com.micita.micita_project.core.service.domain.models.ServiceCriteria;
 import com.micita.micita_project.core.service.domain.models.ServiceEmployee;
+import com.micita.micita_project.core.service.domain.models.ServiceStatus;
 
 import lombok.RequiredArgsConstructor;
 
@@ -27,6 +32,11 @@ import lombok.RequiredArgsConstructor;
 public class ListServicesQueryHandler implements ListServicesUseCase {
 
 	static final int MAX_PAGE_SIZE = 50;
+
+	static final int MAX_NAME_LENGTH = 100;
+
+	private static final Set<String> FILTERABLE_STATUSES = Set.of(ServiceStatus.ACTIVE.name(),
+			ServiceStatus.INACTIVE.name());
 
 	private static final Comparator<ServiceEmployee> BY_NAME = Comparator
 		.comparing((ServiceEmployee employee) -> employee.firstName().toLowerCase())
@@ -42,11 +52,25 @@ public class ListServicesQueryHandler implements ListServicesUseCase {
 	private final EmployeeQueryPort employeeQuery;
 
 	@Override
-	public PageResponse<ServiceListItemResponse> list(UUID ownerId, int page, int size) {
-		validate(page, size);
+	public PageResponse<ServiceListItemResponse> list(UUID ownerId, ServiceListFilter filter, int page, int size) {
+		String name = blankToNull(filter.name());
+		String status = blankToNull(filter.status());
+		validate(page, size, name, status);
 		UUID businessId = businessQuery.requireBusinessIdOf(ownerId);
 
-		PageResponse<Service> services = serviceQueryRepository.findPageOfBusiness(businessId, page, size);
+		Set<UUID> matchingServiceIds = null;
+		if (filter.employeeIds() != null && !filter.employeeIds().isEmpty()) {
+			requireAssignable(businessId, filter.employeeIds());
+			matchingServiceIds = serviceEmployeeQueryRepository.findServiceIdsAssignedTo(filter.employeeIds());
+			if (matchingServiceIds.isEmpty()) {
+				// None of those employees provides a service: no need to query the services.
+				return new PageResponse<>(List.of(), page, size, 0, 0);
+			}
+		}
+		ServiceCriteria criteria = new ServiceCriteria(name, status == null ? null : ServiceStatus.valueOf(status),
+				matchingServiceIds);
+
+		PageResponse<Service> services = serviceQueryRepository.findPageOfBusiness(businessId, criteria, page, size);
 		if (services.content().isEmpty()) {
 			return new PageResponse<>(List.of(), services.page(), services.size(), services.totalElements(),
 					services.totalPages());
@@ -71,13 +95,33 @@ public class ListServicesQueryHandler implements ListServicesUseCase {
 				services.totalPages());
 	}
 
-	private static void validate(int page, int size) {
+	private void requireAssignable(UUID businessId, List<UUID> employeeIds) {
+		Set<UUID> valid = employeeQuery.findAssignableIds(businessId, employeeIds);
+		List<UUID> rejected = new ArrayList<>(new LinkedHashSet<>(employeeIds));
+		rejected.removeAll(valid);
+		if (!rejected.isEmpty()) {
+			throw new InvalidEmployeeIdsException(rejected);
+		}
+	}
+
+	private static String blankToNull(String value) {
+		return value == null || value.isBlank() ? null : value.strip();
+	}
+
+	private static void validate(int page, int size, String name, String status) {
 		Map<String, String> errors = new LinkedHashMap<>();
 		if (page < 0) {
 			errors.put("page", "must be greater than or equal to 0");
 		}
 		if (size < 1 || size > MAX_PAGE_SIZE) {
 			errors.put("size", "must be between 1 and " + MAX_PAGE_SIZE);
+		}
+		if (name != null && name.length() > MAX_NAME_LENGTH) {
+			errors.put("name", "must be at most " + MAX_NAME_LENGTH + " characters");
+		}
+		// Case-sensitive on purpose: only the uppercase values are accepted.
+		if (status != null && !FILTERABLE_STATUSES.contains(status)) {
+			errors.put("status", "must be ACTIVE or INACTIVE");
 		}
 		if (!errors.isEmpty()) {
 			throw new InvalidPageRequestException(errors);

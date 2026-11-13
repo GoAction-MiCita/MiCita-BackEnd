@@ -1,6 +1,7 @@
 package com.micita.micita_project.core.service.infrastructure.adapters.in.rest;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -23,6 +24,7 @@ import com.micita.micita_project.common.shared.pagination.PageResponse;
 import com.micita.micita_project.common.shared.security.SecurityConfig;
 import com.micita.micita_project.core.business.application.ports.in.BusinessOwnershipQueryUseCase;
 import com.micita.micita_project.core.service.application.dto.request.CreateServiceRequest;
+import com.micita.micita_project.core.service.application.dto.request.ServiceListFilter;
 import com.micita.micita_project.core.service.application.dto.response.ServiceEmployeeResponse;
 import com.micita.micita_project.core.service.application.dto.response.ServiceListItemResponse;
 import com.micita.micita_project.core.service.application.dto.response.ServiceResponse;
@@ -168,7 +170,7 @@ class ServiceControllerTest {
 
 	@Test
 	void listsTheServicesPageWithTheirEmployees() throws Exception {
-		given(listServicesUseCase.list(USER_ID, 0, 10)).willReturn(new PageResponse<>(List.of(
+		given(listServicesUseCase.list(USER_ID, ServiceListFilter.none(), 0, 10)).willReturn(new PageResponse<>(List.of(
 				new ServiceListItemResponse(SERVICE_ID, "Corte", "Clásico", 45, new BigDecimal("35000.00"), "ACTIVE",
 						List.of(new ServiceEmployeeResponse(EMPLOYEE_ID, "Ana", "Ruiz", null)))),
 				0, 10, 1, 1));
@@ -191,17 +193,77 @@ class ServiceControllerTest {
 
 	@Test
 	void pagingParametersAreForwarded() throws Exception {
-		given(listServicesUseCase.list(USER_ID, 2, 5)).willReturn(new PageResponse<>(List.of(), 2, 5, 0, 0));
+		given(listServicesUseCase.list(USER_ID, ServiceListFilter.none(), 2, 5))
+			.willReturn(new PageResponse<>(List.of(), 2, 5, 0, 0));
 
 		mockMvc.perform(get("/api/services").param("page", "2").param("size", "5").with(userJwt()))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.content.length()").value(0));
-		verify(listServicesUseCase).list(USER_ID, 2, 5);
+		verify(listServicesUseCase).list(USER_ID, ServiceListFilter.none(), 2, 5);
+	}
+
+	@Test
+	void filtersAreForwardedToTheUseCase() throws Exception {
+		UUID other = UUID.randomUUID();
+		given(listServicesUseCase.list(any(), any(), anyInt(), anyInt()))
+			.willReturn(new PageResponse<>(List.of(), 0, 10, 0, 0));
+
+		mockMvc.perform(get("/api/services").param("name", "cor")
+			.param("status", "ACTIVE")
+			.param("employeeIds", EMPLOYEE_ID + "," + other)
+			.with(userJwt())).andExpect(status().isOk());
+
+		verify(listServicesUseCase).list(USER_ID,
+				new ServiceListFilter("cor", "ACTIVE", List.of(EMPLOYEE_ID, other)), 0, 10);
+	}
+
+	@Test
+	void repeatedEmployeeIdsParametersAreAccepted() throws Exception {
+		UUID other = UUID.randomUUID();
+		given(listServicesUseCase.list(any(), any(), anyInt(), anyInt()))
+			.willReturn(new PageResponse<>(List.of(), 0, 10, 0, 0));
+
+		mockMvc.perform(get("/api/services").param("employeeIds", EMPLOYEE_ID.toString())
+			.param("employeeIds", other.toString())
+			.with(userJwt())).andExpect(status().isOk());
+
+		verify(listServicesUseCase).list(USER_ID, new ServiceListFilter(null, null, List.of(EMPLOYEE_ID, other)), 0,
+				10);
+	}
+
+	@Test
+	void invalidStatusIsBadRequestWithTheStatusError() throws Exception {
+		given(listServicesUseCase.list(USER_ID, new ServiceListFilter(null, "DELETED", null), 0, 10))
+			.willThrow(new InvalidPageRequestException(Map.of("status", "must be ACTIVE or INACTIVE")));
+
+		mockMvc.perform(get("/api/services").param("status", "DELETED").with(userJwt()))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors.status").value("must be ACTIVE or INACTIVE"));
+	}
+
+	@Test
+	void unavailableEmployeesInTheFilterAreBadRequestWithTheRejectedIds() throws Exception {
+		given(listServicesUseCase.list(any(), any(), anyInt(), anyInt()))
+			.willThrow(new InvalidEmployeeIdsException(List.of(EMPLOYEE_ID)));
+
+		mockMvc.perform(get("/api/services").param("employeeIds", EMPLOYEE_ID.toString()).with(userJwt()))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors.employeeIds").exists())
+			.andExpect(jsonPath("$.rejectedIds[0]").value(EMPLOYEE_ID.toString()));
+	}
+
+	@Test
+	void malformedEmployeeIdIsBadRequestWithTheFieldError() throws Exception {
+		mockMvc.perform(get("/api/services").param("employeeIds", "not-a-uuid").with(userJwt()))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors.employeeIds").exists());
+		verifyNoInteractions(listServicesUseCase);
 	}
 
 	@Test
 	void emptyBusinessGetsAnEmptyPage() throws Exception {
-		given(listServicesUseCase.list(USER_ID, 0, 10)).willReturn(new PageResponse<>(List.of(), 0, 10, 0, 0));
+		given(listServicesUseCase.list(USER_ID, ServiceListFilter.none(), 0, 10))
+			.willReturn(new PageResponse<>(List.of(), 0, 10, 0, 0));
 
 		mockMvc.perform(get("/api/services").with(userJwt()))
 			.andExpect(status().isOk())
@@ -211,7 +273,7 @@ class ServiceControllerTest {
 
 	@Test
 	void invalidPagingIsBadRequestWithErrorsPerField() throws Exception {
-		given(listServicesUseCase.list(USER_ID, -1, 99)).willThrow(new InvalidPageRequestException(
+		given(listServicesUseCase.list(USER_ID, ServiceListFilter.none(), -1, 99)).willThrow(new InvalidPageRequestException(
 				Map.of("page", "must be greater than or equal to 0", "size", "must be between 1 and 50")));
 
 		mockMvc.perform(get("/api/services").param("page", "-1").param("size", "99").with(userJwt()))

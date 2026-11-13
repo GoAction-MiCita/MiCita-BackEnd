@@ -33,6 +33,11 @@ public class ServiceEmployeeQueryJpaAdapter implements ServiceEmployeeQueryRepos
 	}
 
 	@Override
+	public Set<UUID> findServiceIdsAssignedTo(Collection<UUID> employeeIds) {
+		return serviceEmployeeJpaRepository.findServiceIdsAssignedTo(employeeIds);
+	}
+
+	@Override
 	public Map<UUID, Set<UUID>> findEmployeeIdsByService(Collection<UUID> serviceIds) {
 		return serviceEmployeeJpaRepository.findByServiceIdIn(serviceIds)
 			.stream()

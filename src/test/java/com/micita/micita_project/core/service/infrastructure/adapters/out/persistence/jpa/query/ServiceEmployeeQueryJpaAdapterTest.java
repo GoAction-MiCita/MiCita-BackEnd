@@ -26,6 +26,16 @@ class ServiceEmployeeQueryJpaAdapterTest {
 	private ServiceEmployeeQueryJpaAdapter adapter;
 
 	@Test
+	void serviceIdsAssignedToAnyOfTheEmployeesComeFromOneLookup() {
+		UUID ana = UUID.randomUUID();
+		UUID luis = UUID.randomUUID();
+		UUID corte = UUID.randomUUID();
+		given(serviceEmployeeJpaRepository.findServiceIdsAssignedTo(List.of(ana, luis))).willReturn(Set.of(corte));
+
+		assertThat(adapter.findServiceIdsAssignedTo(List.of(ana, luis))).containsExactly(corte);
+	}
+
+	@Test
 	void employeeIdsAreGroupedByServiceFromOneLookup() {
 		UUID corte = UUID.randomUUID();
 		UUID tinte = UUID.randomUUID();

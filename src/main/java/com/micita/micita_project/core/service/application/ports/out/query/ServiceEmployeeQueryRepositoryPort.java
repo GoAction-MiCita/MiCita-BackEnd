@@ -21,6 +21,11 @@ public interface ServiceEmployeeQueryRepositoryPort {
 	Set<UUID> findEmployeeIdsAssignedTo(Collection<UUID> serviceIds);
 
 	/**
+	 * Ids of the services that have at least one of {@code employeeIds} assigned, without repeats.
+	 */
+	Set<UUID> findServiceIdsAssignedTo(Collection<UUID> employeeIds);
+
+	/**
 	 * Ids of the employees assigned to each of {@code serviceIds}; services without employees have no entry.
 	 */
 	Map<UUID, Set<UUID>> findEmployeeIdsByService(Collection<UUID> serviceIds);

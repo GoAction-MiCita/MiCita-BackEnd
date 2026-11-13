@@ -34,6 +34,9 @@ public interface ServiceEmployeeJpaRepository extends JpaRepository<ServiceEmplo
 	List<ServiceAssignment> findActiveAssignments(UUID businessId, Collection<UUID> employeeIds,
 			ServiceStatus excluded);
 
+	@Query("select distinct se.serviceId from ServiceEmployeeEntity se where se.employeeId in :employeeIds")
+	Set<UUID> findServiceIdsAssignedTo(Collection<UUID> employeeIds);
+
 	@Query("select distinct se.employeeId from ServiceEmployeeEntity se where se.serviceId in :serviceIds")
 	Set<UUID> findEmployeeIdsAssignedTo(Collection<UUID> serviceIds);
 

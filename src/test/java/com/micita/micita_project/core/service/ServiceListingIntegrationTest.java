@@ -151,6 +151,150 @@ class ServiceListingIntegrationTest {
 	}
 
 	@Test
+	void nameFilterMatchesContainedTextIgnoringCase() throws Exception {
+		Owner owner = ownerWithBusiness();
+		UUID corte = service(owner.businessId(), "Corte clásico", ServiceStatus.ACTIVE);
+		UUID escorial = service(owner.businessId(), "ESCORIAL", ServiceStatus.INACTIVE);
+		service(owner.businessId(), "Tinte", ServiceStatus.ACTIVE);
+		UUID underscore = service(owner.businessId(), "Combo_uno", ServiceStatus.ACTIVE);
+		service(owner.businessId(), "Combo duo", ServiceStatus.ACTIVE);
+
+		list(owner, "?name=COR").andExpect(status().isOk())
+			.andExpect(jsonPath("$.content.length()").value(2))
+			.andExpect(jsonPath("$.content[0].id").value(corte.toString()))
+			.andExpect(jsonPath("$.content[1].id").value(escorial.toString()))
+			.andExpect(jsonPath("$.totalElements").value(2));
+		// LIKE wildcards are literal text, so they don't match everything.
+		list(owner, "?name=o_u").andExpect(status().isOk())
+			.andExpect(jsonPath("$.content.length()").value(1))
+			.andExpect(jsonPath("$.content[0].id").value(underscore.toString()));
+		list(owner, "?name=zzz").andExpect(status().isOk()).andExpect(jsonPath("$.content.length()").value(0));
+	}
+
+	@Test
+	void statusFilterReturnsOnlyThatStatus() throws Exception {
+		Owner owner = ownerWithBusiness();
+		service(owner.businessId(), "Corte", ServiceStatus.ACTIVE);
+		UUID tinte = service(owner.businessId(), "Tinte", ServiceStatus.INACTIVE);
+		service(owner.businessId(), "Antiguo", ServiceStatus.DELETED);
+
+		list(owner, "?status=INACTIVE").andExpect(status().isOk())
+			.andExpect(jsonPath("$.content.length()").value(1))
+			.andExpect(jsonPath("$.content[0].id").value(tinte.toString()));
+		list(owner, "?status=ACTIVE").andExpect(status().isOk())
+			.andExpect(jsonPath("$.content.length()").value(1))
+			.andExpect(jsonPath("$.content[0].name").value("Corte"));
+	}
+
+	@Test
+	void deletedOrUnknownStatusIsBadRequest() throws Exception {
+		Owner owner = ownerWithBusiness();
+		service(owner.businessId(), "Antiguo", ServiceStatus.DELETED);
+
+		for (String status : new String[] { "DELETED", "active", "PENDING" }) {
+			list(owner, "?status=" + status).andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errors.status").exists());
+		}
+	}
+
+	@Test
+	void employeeFilterReturnsServicesWithAtLeastOneOfTheEmployees() throws Exception {
+		Owner owner = ownerWithBusiness();
+		UUID corte = service(owner.businessId(), "Corte", ServiceStatus.ACTIVE);
+		UUID tinte = service(owner.businessId(), "Tinte", ServiceStatus.ACTIVE);
+		UUID barba = service(owner.businessId(), "Barba", ServiceStatus.ACTIVE);
+		UUID ana = employee(owner.businessId(), "Ana", "Ruiz", EmployeeStatus.ACTIVE);
+		UUID luis = employee(owner.businessId(), "Luis", "Mora", EmployeeStatus.INACTIVE);
+		UUID eva = employee(owner.businessId(), "Eva", "Paz", EmployeeStatus.ACTIVE);
+		assign(corte, ana);
+		assign(tinte, luis);
+		assign(tinte, ana);
+		assign(barba, eva);
+
+		list(owner, "?employeeIds=" + ana + "," + luis).andExpect(status().isOk())
+			.andExpect(jsonPath("$.content.length()").value(2))
+			.andExpect(jsonPath("$.content[0].id").value(corte.toString()))
+			.andExpect(jsonPath("$.content[1].id").value(tinte.toString()))
+			// Each service still lists all of its employees, not only the filtered ones.
+			.andExpect(jsonPath("$.content[1].employees.length()").value(2))
+			.andExpect(jsonPath("$.totalElements").value(2));
+		list(owner, "?employeeIds=" + ana + "&employeeIds=" + eva).andExpect(status().isOk())
+			.andExpect(jsonPath("$.totalElements").value(3));
+	}
+
+	@Test
+	void employeeWithoutServicesGivesAnEmptyPage() throws Exception {
+		Owner owner = ownerWithBusiness();
+		service(owner.businessId(), "Corte", ServiceStatus.ACTIVE);
+		UUID ana = employee(owner.businessId(), "Ana", "Ruiz", EmployeeStatus.ACTIVE);
+
+		list(owner, "?employeeIds=" + ana).andExpect(status().isOk())
+			.andExpect(jsonPath("$.content.length()").value(0))
+			.andExpect(jsonPath("$.totalElements").value(0))
+			.andExpect(jsonPath("$.totalPages").value(0));
+	}
+
+	@Test
+	void filtersAreCombinedWithAnd() throws Exception {
+		Owner owner = ownerWithBusiness();
+		UUID corte = service(owner.businessId(), "Corte", ServiceStatus.ACTIVE);
+		UUID corteInactivo = service(owner.businessId(), "Corte de barba", ServiceStatus.INACTIVE);
+		UUID tinte = service(owner.businessId(), "Tinte", ServiceStatus.ACTIVE);
+		UUID ana = employee(owner.businessId(), "Ana", "Ruiz", EmployeeStatus.ACTIVE);
+		assign(corte, ana);
+		assign(corteInactivo, ana);
+		assign(tinte, ana);
+
+		list(owner, "?name=corte&status=ACTIVE&employeeIds=" + ana).andExpect(status().isOk())
+			.andExpect(jsonPath("$.content.length()").value(1))
+			.andExpect(jsonPath("$.content[0].id").value(corte.toString()));
+		list(owner, "?name=tinte&status=INACTIVE&employeeIds=" + ana).andExpect(status().isOk())
+			.andExpect(jsonPath("$.content.length()").value(0));
+	}
+
+	@Test
+	void totalsAndPagesRespectTheFilters() throws Exception {
+		Owner owner = ownerWithBusiness();
+		service(owner.businessId(), "Corte A", ServiceStatus.ACTIVE);
+		service(owner.businessId(), "Corte B", ServiceStatus.ACTIVE);
+		service(owner.businessId(), "Corte C", ServiceStatus.ACTIVE);
+		service(owner.businessId(), "Tinte", ServiceStatus.ACTIVE);
+
+		list(owner, "?name=corte&page=1&size=2").andExpect(status().isOk())
+			.andExpect(jsonPath("$.content.length()").value(1))
+			.andExpect(jsonPath("$.content[0].name").value("Corte C"))
+			.andExpect(jsonPath("$.page").value(1))
+			.andExpect(jsonPath("$.totalElements").value(3))
+			.andExpect(jsonPath("$.totalPages").value(2));
+	}
+
+	@Test
+	void unknownForeignOrDeletedEmployeesAreBadRequestWithTheirIds() throws Exception {
+		Owner owner = ownerWithBusiness();
+		Owner other = ownerWithBusiness();
+		UUID mine = employee(owner.businessId(), "Ana", "Ruiz", EmployeeStatus.ACTIVE);
+		UUID foreign = employee(other.businessId(), "Eva", "Paz", EmployeeStatus.ACTIVE);
+		UUID deleted = employee(owner.businessId(), "Beto", "Gil", EmployeeStatus.DELETED);
+		UUID unknown = UUID.randomUUID();
+
+		list(owner, "?employeeIds=" + mine + "," + foreign + "," + deleted + "," + unknown)
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors.employeeIds").exists())
+			.andExpect(jsonPath("$.rejectedIds.length()").value(3))
+			.andExpect(jsonPath("$.rejectedIds[0]").value(foreign.toString()))
+			.andExpect(jsonPath("$.rejectedIds[1]").value(deleted.toString()))
+			.andExpect(jsonPath("$.rejectedIds[2]").value(unknown.toString()));
+	}
+
+	@Test
+	void malformedEmployeeIdIsBadRequest() throws Exception {
+		Owner owner = ownerWithBusiness();
+
+		list(owner, "?employeeIds=not-a-uuid").andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors.employeeIds").exists());
+	}
+
+	@Test
 	void invalidPagingIsBadRequest() throws Exception {
 		Owner owner = ownerWithBusiness();
 
