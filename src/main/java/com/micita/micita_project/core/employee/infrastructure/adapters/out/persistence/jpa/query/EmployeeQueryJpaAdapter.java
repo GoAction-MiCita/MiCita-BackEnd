@@ -70,6 +70,14 @@ public class EmployeeQueryJpaAdapter implements EmployeeQueryRepositoryPort {
 	}
 
 	@Override
+	public List<Employee> findAllOfBusiness(UUID businessId, Collection<UUID> employeeIds) {
+		return employeeJpaRepository.findByBusinessIdAndIdInAndStatusNot(businessId, employeeIds, EmployeeStatus.DELETED)
+			.stream()
+			.map(employeeBDMapper::toDomain)
+			.toList();
+	}
+
+	@Override
 	public PageResponse<Employee> findPageOfBusiness(UUID businessId, EmployeeCriteria criteria, int page,
 			int size) {
 		Page<EmployeeEntity> result = employeeJpaRepository.findAll(matching(businessId, criteria),

@@ -22,7 +22,9 @@ import lombok.Setter;
  * Columns follow HU-09. So far only the lookups that assign services to employees (HU-17) use it.
  */
 @Entity
-@Table(name = "services", indexes = @Index(name = "idx_services_business_id", columnList = "business_id"))
+@Table(name = "services", indexes = {
+		@Index(name = "idx_services_business_id", columnList = "business_id"),
+		@Index(name = "idx_services_business_status_name", columnList = "business_id, status, name") })
 @Getter
 @Setter
 public class ServiceEntity {

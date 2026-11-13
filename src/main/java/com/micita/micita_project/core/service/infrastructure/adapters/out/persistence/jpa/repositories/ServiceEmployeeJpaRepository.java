@@ -17,6 +17,8 @@ public interface ServiceEmployeeJpaRepository extends JpaRepository<ServiceEmplo
 
 	List<ServiceEmployeeEntity> findByEmployeeId(UUID employeeId);
 
+	List<ServiceEmployeeEntity> findByServiceIdIn(Collection<UUID> serviceIds);
+
 	@Modifying(flushAutomatically = true, clearAutomatically = true)
 	@Query("delete from ServiceEmployeeEntity se where se.employeeId = :employeeId")
 	void deleteByEmployeeId(UUID employeeId);

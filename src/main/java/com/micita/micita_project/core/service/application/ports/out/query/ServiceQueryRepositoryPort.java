@@ -4,6 +4,9 @@ import java.util.Collection;
 import java.util.Set;
 import java.util.UUID;
 
+import com.micita.micita_project.common.shared.pagination.PageResponse;
+import com.micita.micita_project.core.service.domain.models.Service;
+
 public interface ServiceQueryRepositoryPort {
 
 	/**
@@ -15,5 +18,10 @@ public interface ServiceQueryRepositoryPort {
 	 * @return whether a non-deleted service of the business already has {@code name}, ignoring case
 	 */
 	boolean existsByName(UUID businessId, String name);
+
+	/**
+	 * Services of the business that are not deleted, by name ignoring case (then by id).
+	 */
+	PageResponse<Service> findPageOfBusiness(UUID businessId, int page, int size);
 
 }

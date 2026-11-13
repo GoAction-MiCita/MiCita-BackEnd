@@ -4,11 +4,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
 import com.micita.micita_project.core.employee.application.ports.out.query.EmployeeQueryRepositoryPort;
+import com.micita.micita_project.core.employee.domain.models.Employee;
+import com.micita.micita_project.core.employee.domain.models.EmployeeStatus;
+import com.micita.micita_project.core.employee.domain.models.EmployeeSummary;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -39,6 +43,25 @@ class EmployeeQueryHandlerTest {
 	@Test
 	void emptyListNeedsNoLookup() {
 		assertThat(handler.findAssignableIds(UUID.randomUUID(), List.of())).isEmpty();
+		verifyNoInteractions(employeeQueryRepository);
+	}
+
+	@Test
+	void summariesCarryOnlyTheIdAndTheName() {
+		UUID businessId = UUID.randomUUID();
+		UUID employeeId = UUID.randomUUID();
+		Instant now = Instant.parse("2026-10-29T15:00:00Z");
+		given(employeeQueryRepository.findAllOfBusiness(businessId, Set.of(employeeId)))
+			.willReturn(List.of(new Employee(employeeId, businessId, "Ana", "Ruiz", "+573001234567", "ana@elcorte.com",
+					EmployeeStatus.INACTIVE, now, now)));
+
+		assertThat(handler.findSummaries(businessId, List.of(employeeId, employeeId)))
+			.containsExactly(new EmployeeSummary(employeeId, "Ana", "Ruiz"));
+	}
+
+	@Test
+	void emptyListNeedsNoSummaryLookup() {
+		assertThat(handler.findSummaries(UUID.randomUUID(), List.of())).isEmpty();
 		verifyNoInteractions(employeeQueryRepository);
 	}
 

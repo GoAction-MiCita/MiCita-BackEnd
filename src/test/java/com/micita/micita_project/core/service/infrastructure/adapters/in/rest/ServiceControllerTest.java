@@ -5,7 +5,9 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -13,13 +15,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
+import com.micita.micita_project.common.shared.exception.InvalidPageRequestException;
+import com.micita.micita_project.common.shared.pagination.PageResponse;
 import com.micita.micita_project.common.shared.security.SecurityConfig;
 import com.micita.micita_project.core.business.application.ports.in.BusinessOwnershipQueryUseCase;
 import com.micita.micita_project.core.service.application.dto.request.CreateServiceRequest;
+import com.micita.micita_project.core.service.application.dto.response.ServiceEmployeeResponse;
+import com.micita.micita_project.core.service.application.dto.response.ServiceListItemResponse;
 import com.micita.micita_project.core.service.application.dto.response.ServiceResponse;
 import com.micita.micita_project.core.service.application.ports.in.CreateServiceUseCase;
+import com.micita.micita_project.core.service.application.ports.in.ListServicesUseCase;
 import com.micita.micita_project.core.service.domain.exceptions.DuplicateServiceException;
 import com.micita.micita_project.core.service.domain.exceptions.InvalidEmployeeIdsException;
 import org.junit.jupiter.api.BeforeEach;
@@ -59,6 +67,9 @@ class ServiceControllerTest {
 
 	@MockitoBean
 	private CreateServiceUseCase createServiceUseCase;
+
+	@MockitoBean
+	private ListServicesUseCase listServicesUseCase;
 
 	@MockitoBean
 	private BusinessOwnershipQueryUseCase businessOwnershipQuery;
@@ -153,6 +164,76 @@ class ServiceControllerTest {
 			.andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.code").value("BUSINESS_REQUIRED"));
 		verify(createServiceUseCase, never()).create(any(), any());
+	}
+
+	@Test
+	void listsTheServicesPageWithTheirEmployees() throws Exception {
+		given(listServicesUseCase.list(USER_ID, 0, 10)).willReturn(new PageResponse<>(List.of(
+				new ServiceListItemResponse(SERVICE_ID, "Corte", "Clásico", 45, new BigDecimal("35000.00"), "ACTIVE",
+						List.of(new ServiceEmployeeResponse(EMPLOYEE_ID, "Ana", "Ruiz", null)))),
+				0, 10, 1, 1));
+
+		mockMvc.perform(get("/api/services").with(userJwt()))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.content[0].id").value(SERVICE_ID.toString()))
+			.andExpect(jsonPath("$.content[0].name").value("Corte"))
+			.andExpect(jsonPath("$.content[0].durationMinutes").value(45))
+			.andExpect(jsonPath("$.content[0].price").value(35000.00))
+			.andExpect(jsonPath("$.content[0].status").value("ACTIVE"))
+			.andExpect(jsonPath("$.content[0].employees[0].id").value(EMPLOYEE_ID.toString()))
+			.andExpect(jsonPath("$.content[0].employees[0].firstName").value("Ana"))
+			.andExpect(jsonPath("$.content[0].employees[0].photoUrl").doesNotExist())
+			.andExpect(jsonPath("$.page").value(0))
+			.andExpect(jsonPath("$.size").value(10))
+			.andExpect(jsonPath("$.totalElements").value(1))
+			.andExpect(jsonPath("$.totalPages").value(1));
+	}
+
+	@Test
+	void pagingParametersAreForwarded() throws Exception {
+		given(listServicesUseCase.list(USER_ID, 2, 5)).willReturn(new PageResponse<>(List.of(), 2, 5, 0, 0));
+
+		mockMvc.perform(get("/api/services").param("page", "2").param("size", "5").with(userJwt()))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.content.length()").value(0));
+		verify(listServicesUseCase).list(USER_ID, 2, 5);
+	}
+
+	@Test
+	void emptyBusinessGetsAnEmptyPage() throws Exception {
+		given(listServicesUseCase.list(USER_ID, 0, 10)).willReturn(new PageResponse<>(List.of(), 0, 10, 0, 0));
+
+		mockMvc.perform(get("/api/services").with(userJwt()))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.content.length()").value(0))
+			.andExpect(jsonPath("$.totalElements").value(0));
+	}
+
+	@Test
+	void invalidPagingIsBadRequestWithErrorsPerField() throws Exception {
+		given(listServicesUseCase.list(USER_ID, -1, 99)).willThrow(new InvalidPageRequestException(
+				Map.of("page", "must be greater than or equal to 0", "size", "must be between 1 and 50")));
+
+		mockMvc.perform(get("/api/services").param("page", "-1").param("size", "99").with(userJwt()))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors.page").exists())
+			.andExpect(jsonPath("$.errors.size").exists());
+	}
+
+	@Test
+	void listWithoutTokenIsUnauthorized() throws Exception {
+		mockMvc.perform(get("/api/services")).andExpect(status().isUnauthorized());
+		verifyNoInteractions(listServicesUseCase);
+	}
+
+	@Test
+	void listForUserWithoutBusinessIsForbidden() throws Exception {
+		given(businessOwnershipQuery.ownsBusiness(USER_ID)).willReturn(false);
+
+		mockMvc.perform(get("/api/services").with(userJwt()))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("BUSINESS_REQUIRED"));
+		verifyNoInteractions(listServicesUseCase);
 	}
 
 	private static MockHttpServletRequestBuilder create(String body) {

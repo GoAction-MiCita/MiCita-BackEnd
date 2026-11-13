@@ -9,6 +9,8 @@ import java.util.UUID;
 
 import com.micita.micita_project.core.business.application.ports.in.BusinessOwnershipQueryUseCase;
 import com.micita.micita_project.core.employee.application.ports.in.EmployeeQueryUseCase;
+import com.micita.micita_project.core.employee.domain.models.EmployeeSummary;
+import com.micita.micita_project.core.service.domain.models.ServiceEmployee;
 import com.micita.micita_project.core.service.infrastructure.adapters.out.business.ServiceBusinessQueryAdapter;
 import com.micita.micita_project.core.service.infrastructure.adapters.out.employee.ServiceEmployeeQueryModuleAdapter;
 import org.junit.jupiter.api.Test;
@@ -47,6 +49,17 @@ class ModuleAdaptersTest {
 		assertThat(new ServiceEmployeeQueryModuleAdapter(employeeQuery).findAssignableIds(businessId,
 				List.of(employeeId)))
 			.containsExactly(employeeId);
+	}
+
+	@Test
+	void employeeNamesComeFromTheEmployeeModule() {
+		UUID businessId = UUID.randomUUID();
+		UUID employeeId = UUID.randomUUID();
+		given(employeeQuery.findSummaries(businessId, List.of(employeeId)))
+			.willReturn(List.of(new EmployeeSummary(employeeId, "Ana", "Ruiz")));
+
+		assertThat(new ServiceEmployeeQueryModuleAdapter(employeeQuery).findEmployees(businessId, List.of(employeeId)))
+			.containsExactly(new ServiceEmployee(employeeId, "Ana", "Ruiz"));
 	}
 
 }

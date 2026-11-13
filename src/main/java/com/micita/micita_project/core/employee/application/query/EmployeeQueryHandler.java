@@ -1,12 +1,14 @@
 package com.micita.micita_project.core.employee.application.query;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
 import com.micita.micita_project.core.employee.application.ports.in.BookableEmployeesQueryPort;
 import com.micita.micita_project.core.employee.application.ports.in.EmployeeQueryUseCase;
 import com.micita.micita_project.core.employee.application.ports.out.query.EmployeeQueryRepositoryPort;
+import com.micita.micita_project.core.employee.domain.models.EmployeeSummary;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -23,6 +25,17 @@ public class EmployeeQueryHandler implements EmployeeQueryUseCase, BookableEmplo
 			return Set.of();
 		}
 		return employeeQueryRepository.findAssignableIds(businessId, Set.copyOf(employeeIds));
+	}
+
+	@Override
+	public List<EmployeeSummary> findSummaries(UUID businessId, Collection<UUID> employeeIds) {
+		if (employeeIds.isEmpty()) {
+			return List.of();
+		}
+		return employeeQueryRepository.findAllOfBusiness(businessId, Set.copyOf(employeeIds))
+			.stream()
+			.map(employee -> new EmployeeSummary(employee.id(), employee.firstName(), employee.lastName()))
+			.toList();
 	}
 
 	@Override

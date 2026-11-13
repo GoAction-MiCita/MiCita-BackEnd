@@ -1,11 +1,13 @@
 package com.micita.micita_project.core.service.infrastructure.adapters.out.employee;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
 import com.micita.micita_project.core.employee.application.ports.in.EmployeeQueryUseCase;
 import com.micita.micita_project.core.service.application.ports.out.query.EmployeeQueryPort;
+import com.micita.micita_project.core.service.domain.models.ServiceEmployee;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -22,6 +24,14 @@ public class ServiceEmployeeQueryModuleAdapter implements EmployeeQueryPort {
 	@Override
 	public Set<UUID> findAssignableIds(UUID businessId, Collection<UUID> employeeIds) {
 		return employeeQuery.findAssignableIds(businessId, employeeIds);
+	}
+
+	@Override
+	public List<ServiceEmployee> findEmployees(UUID businessId, Collection<UUID> employeeIds) {
+		return employeeQuery.findSummaries(businessId, employeeIds)
+			.stream()
+			.map(employee -> new ServiceEmployee(employee.id(), employee.firstName(), employee.lastName()))
+			.toList();
 	}
 
 }

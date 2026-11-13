@@ -2,6 +2,7 @@ package com.micita.micita_project.core.service.application.ports.out.query;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -18,5 +19,10 @@ public interface ServiceEmployeeQueryRepositoryPort {
 	 * Ids of the employees assigned to any of {@code serviceIds}, without repeats.
 	 */
 	Set<UUID> findEmployeeIdsAssignedTo(Collection<UUID> serviceIds);
+
+	/**
+	 * Ids of the employees assigned to each of {@code serviceIds}; services without employees have no entry.
+	 */
+	Map<UUID, Set<UUID>> findEmployeeIdsByService(Collection<UUID> serviceIds);
 
 }

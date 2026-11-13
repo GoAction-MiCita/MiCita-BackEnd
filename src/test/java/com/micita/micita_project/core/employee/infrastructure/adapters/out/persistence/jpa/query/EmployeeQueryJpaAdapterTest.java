@@ -64,6 +64,20 @@ class EmployeeQueryJpaAdapterTest {
 	}
 
 	@Test
+	void lookupByIdsSkipsDeletedEmployees() {
+		UUID employeeId = UUID.randomUUID();
+		EmployeeEntity entity = new EmployeeEntity();
+		Employee employee = new Employee(employeeId, BUSINESS_ID, "Ana", "Ruiz", null, null, EmployeeStatus.ACTIVE,
+				Instant.now(), Instant.now());
+		given(employeeJpaRepository.findByBusinessIdAndIdInAndStatusNot(BUSINESS_ID, List.of(employeeId),
+				EmployeeStatus.DELETED))
+			.willReturn(List.of(entity));
+		given(employeeBDMapper.toDomain(entity)).willReturn(employee);
+
+		assertThat(adapter.findAllOfBusiness(BUSINESS_ID, List.of(employeeId))).containsExactly(employee);
+	}
+
+	@Test
 	void duplicateLookupsForAnEditIgnoreTheEmployeeItselfAndDeletedOnes() {
 		UUID employeeId = UUID.fromString("9a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d");
 		given(employeeJpaRepository.existsByBusinessIdAndEmailAndStatusNotAndIdNot(BUSINESS_ID, "ana@elcorte.com",

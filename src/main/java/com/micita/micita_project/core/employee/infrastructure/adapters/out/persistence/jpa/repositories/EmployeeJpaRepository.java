@@ -1,6 +1,7 @@
 package com.micita.micita_project.core.employee.infrastructure.adapters.out.persistence.jpa.repositories;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -24,6 +25,9 @@ public interface EmployeeJpaRepository
 
 	boolean existsByBusinessIdAndPhoneAndStatusNotAndIdNot(UUID businessId, String phone, EmployeeStatus status,
 			UUID id);
+
+	List<EmployeeEntity> findByBusinessIdAndIdInAndStatusNot(UUID businessId, Collection<UUID> ids,
+			EmployeeStatus status);
 
 	Optional<EmployeeEntity> findByIdAndBusinessIdAndStatusNot(UUID id, UUID businessId, EmployeeStatus status);
 

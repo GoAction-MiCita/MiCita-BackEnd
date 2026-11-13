@@ -1,6 +1,7 @@
 package com.micita.micita_project.core.employee.application.ports.out.query;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -34,6 +35,11 @@ public interface EmployeeQueryRepositoryPort {
 	Optional<Employee> findOfBusiness(UUID businessId, UUID employeeId);
 
 	Set<UUID> findAssignableIds(UUID businessId, Collection<UUID> employeeIds);
+
+	/**
+	 * @return the employees among {@code employeeIds} that belong to the business and are not deleted
+	 */
+	List<Employee> findAllOfBusiness(UUID businessId, Collection<UUID> employeeIds);
 
 	/**
 	 * Employees that are not deleted and match {@code criteria}, newest first.
