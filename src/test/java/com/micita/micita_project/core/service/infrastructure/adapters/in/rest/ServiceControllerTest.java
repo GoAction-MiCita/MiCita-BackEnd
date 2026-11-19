@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -20,14 +21,18 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.micita.micita_project.common.shared.exception.InvalidPageRequestException;
+import com.micita.micita_project.common.shared.exception.ResourceNotFoundException;
 import com.micita.micita_project.common.shared.pagination.PageResponse;
 import com.micita.micita_project.common.shared.security.SecurityConfig;
 import com.micita.micita_project.core.business.application.ports.in.BusinessOwnershipQueryUseCase;
+import com.micita.micita_project.core.service.application.dto.request.ChangeServiceStatusRequest;
 import com.micita.micita_project.core.service.application.dto.request.CreateServiceRequest;
 import com.micita.micita_project.core.service.application.dto.request.ServiceListFilter;
 import com.micita.micita_project.core.service.application.dto.response.ServiceEmployeeResponse;
 import com.micita.micita_project.core.service.application.dto.response.ServiceListItemResponse;
 import com.micita.micita_project.core.service.application.dto.response.ServiceResponse;
+import com.micita.micita_project.core.service.application.dto.response.ServiceStatusResponse;
+import com.micita.micita_project.core.service.application.ports.in.ChangeServiceStatusUseCase;
 import com.micita.micita_project.core.service.application.ports.in.CreateServiceUseCase;
 import com.micita.micita_project.core.service.application.ports.in.ListServicesUseCase;
 import com.micita.micita_project.core.service.domain.exceptions.DuplicateServiceException;
@@ -74,6 +79,9 @@ class ServiceControllerTest {
 	private ListServicesUseCase listServicesUseCase;
 
 	@MockitoBean
+	private ChangeServiceStatusUseCase changeServiceStatusUseCase;
+
+	@MockitoBean
 	private BusinessOwnershipQueryUseCase businessOwnershipQuery;
 
 	// SecurityConfig's AuthenticationManager needs one; the JPA implementation is outside the slice. Named so
@@ -84,6 +92,58 @@ class ServiceControllerTest {
 	@BeforeEach
 	void userHasABusiness() {
 		given(businessOwnershipQuery.ownsBusiness(USER_ID)).willReturn(true);
+	}
+
+	@Test
+	void changeStatusReturnsIdAndNewStatus() throws Exception {
+		given(changeServiceStatusUseCase.changeStatus(eq(USER_ID), eq(SERVICE_ID), any()))
+			.willReturn(new ServiceStatusResponse(SERVICE_ID, "INACTIVE"));
+
+		mockMvc.perform(patchStatus(SERVICE_ID.toString(), "{\"status\":\"INACTIVE\"}").with(userJwt()))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.id").value(SERVICE_ID.toString()))
+			.andExpect(jsonPath("$.status").value("INACTIVE"));
+		verify(changeServiceStatusUseCase).changeStatus(USER_ID, SERVICE_ID, new ChangeServiceStatusRequest("INACTIVE"));
+	}
+
+	@Test
+	void changeStatusRejectsDeletedAndInvalidValuesWithoutCallingTheUseCase() throws Exception {
+		for (String body : List.of("{\"status\":\"DELETED\"}", "{\"status\":\"inactive\"}", "{\"status\":\"PAUSED\"}",
+				"{}")) {
+			mockMvc.perform(patchStatus(SERVICE_ID.toString(), body).with(userJwt()))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errors.status").exists());
+		}
+		verifyNoInteractions(changeServiceStatusUseCase);
+	}
+
+	@Test
+	void changeStatusWithMalformedIdIsBadRequest() throws Exception {
+		mockMvc.perform(patchStatus("not-a-uuid", "{\"status\":\"ACTIVE\"}").with(userJwt()))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors.id").exists());
+		verifyNoInteractions(changeServiceStatusUseCase);
+	}
+
+	@Test
+	void changeStatusOfAnUnknownServiceIsNotFound() throws Exception {
+		given(changeServiceStatusUseCase.changeStatus(eq(USER_ID), eq(SERVICE_ID), any()))
+			.willThrow(new ResourceNotFoundException("Service not found"));
+
+		mockMvc.perform(patchStatus(SERVICE_ID.toString(), "{\"status\":\"ACTIVE\"}").with(userJwt()))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.detail").value("Service not found"));
+	}
+
+	@Test
+	void changeStatusWithoutTokenIsUnauthorized() throws Exception {
+		mockMvc.perform(patchStatus(SERVICE_ID.toString(), "{\"status\":\"ACTIVE\"}"))
+			.andExpect(status().isUnauthorized());
+		verifyNoInteractions(changeServiceStatusUseCase);
+	}
+
+	private static MockHttpServletRequestBuilder patchStatus(String id, String body) {
+		return patch("/api/services/" + id + "/status").contentType(MediaType.APPLICATION_JSON).content(body);
 	}
 
 	@Test

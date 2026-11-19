@@ -11,6 +11,7 @@ import static org.mockito.Mockito.mock;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -72,6 +73,40 @@ class ServiceQueryJpaAdapterTest {
 		assertThat(pageable.getValue().getSort().getOrderFor("name").isAscending()).isTrue();
 		assertThat(pageable.getValue().getSort().getOrderFor("name").isIgnoreCase()).isTrue();
 		assertThat(pageable.getValue().getSort().getOrderFor("id")).isNotNull();
+	}
+
+	@Test
+	void findOfBusinessExcludesDeletedServices() {
+		UUID businessId = UUID.randomUUID();
+		UUID serviceId = UUID.randomUUID();
+		ServiceEntity entity = new ServiceEntity();
+		Service service = new Service(serviceId, businessId, "Corte", null, null, null, ServiceStatus.INACTIVE,
+				Instant.now(), Instant.now());
+		given(serviceJpaRepository.findByIdAndBusinessIdAndStatusNot(serviceId, businessId, ServiceStatus.DELETED))
+			.willReturn(Optional.of(entity));
+		given(serviceBDMapper.toDomain(entity)).willReturn(service);
+
+		assertThat(adapter.findOfBusiness(businessId, serviceId)).contains(service);
+	}
+
+	@Test
+	void findOfBusinessIsEmptyForUnknownForeignOrDeletedServices() {
+		UUID businessId = UUID.randomUUID();
+		UUID serviceId = UUID.randomUUID();
+		given(serviceJpaRepository.findByIdAndBusinessIdAndStatusNot(serviceId, businessId, ServiceStatus.DELETED))
+			.willReturn(Optional.empty());
+
+		assertThat(adapter.findOfBusiness(businessId, serviceId)).isEmpty();
+	}
+
+	@Test
+	void bookableIdsOnlyAskForActiveServices() {
+		UUID businessId = UUID.randomUUID();
+		UUID serviceId = UUID.randomUUID();
+		given(serviceJpaRepository.findIdsOfBusinessWithStatus(businessId, List.of(serviceId), ServiceStatus.ACTIVE))
+			.willReturn(Set.of(serviceId));
+
+		assertThat(adapter.findBookableIds(businessId, List.of(serviceId))).containsExactly(serviceId);
 	}
 
 	@Test

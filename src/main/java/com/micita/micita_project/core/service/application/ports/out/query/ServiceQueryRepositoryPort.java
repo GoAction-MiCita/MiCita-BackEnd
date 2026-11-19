@@ -1,6 +1,7 @@
 package com.micita.micita_project.core.service.application.ports.out.query;
 
 import java.util.Collection;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -25,5 +26,15 @@ public interface ServiceQueryRepositoryPort {
 	 * by id). The page totals count only the matching services.
 	 */
 	PageResponse<Service> findPageOfBusiness(UUID businessId, ServiceCriteria criteria, int page, int size);
+
+	/**
+	 * @return the service if it belongs to the business and is not deleted
+	 */
+	Optional<Service> findOfBusiness(UUID businessId, UUID serviceId);
+
+	/**
+	 * @return the ids among {@code serviceIds} that belong to the business and are {@code ACTIVE}
+	 */
+	Set<UUID> findBookableIds(UUID businessId, Collection<UUID> serviceIds);
 
 }

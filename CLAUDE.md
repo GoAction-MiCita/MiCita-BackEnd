@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project state
 
-MiCita backend: the Spring Boot REST API for an appointment-booking product. Cross-cutting infrastructure is in place: hexagonal package layout, JWT login, error handling, Swagger, profiles, and test/coverage tooling. Implemented modules: `auth` (HU-01, HU-02), `business` (onboarding, HU-03/HU-04) and `employee` (registration, listing, filters, activation, detail/edit and soft delete, HU-17/HU-16/HU-22/HU-20/HU-18/HU-21). `service` has the `services` table, the `service_employees` association (ADR-002), service registration (HU-09), the listing (HU-08) and its filters (HU-13); its other endpoints (HU-12 and the rest of E02) are pending.
+MiCita backend: the Spring Boot REST API for an appointment-booking product. Cross-cutting infrastructure is in place: hexagonal package layout, JWT login, error handling, Swagger, profiles, and test/coverage tooling. Implemented modules: `auth` (HU-01, HU-02), `business` (onboarding, HU-03/HU-04) and `employee` (registration, listing, filters, activation, detail/edit and soft delete, HU-17/HU-16/HU-22/HU-20/HU-18/HU-21). `service` has the `services` table, the `service_employees` association (ADR-002), service registration (HU-09), the listing (HU-08), its filters (HU-13) and activation (HU-11); its other endpoints (HU-12 and the rest of E02) are pending.
 
 
 ## Stack
@@ -181,6 +181,10 @@ Implemented today:
     - `employeeIds` (comma-separated or repeated): services that have at least one of them assigned (OR between ids), resolved through `ServiceEmployeeQueryRepositoryPort.findServiceIdsAssignedTo`. Unknown, foreign or `DELETED` employees give 400 with `rejectedIds` (`InvalidEmployeeIdsException`, checked with the employee module's `findAssignableIds`); `INACTIVE` ones are accepted. A malformed UUID gives 400 with `errors.employeeIds` (`GlobalExceptionHandler.handleTypeMismatch`). Each returned service still lists all its employees, not only the filtered ones. Blank `name`/`status` and an empty `employeeIds` don't filter.
   - Ordered by name ignoring case, then by id. `ACTIVE` and `INACTIVE` services appear; `DELETED` ones and those of other businesses never do. The page also gets `idx_services_business_status_name` `(business_id, status, name)`; without migrations, prod's `validate` needs that index created by hand.
   - `employees` (`id`, `firstName`, `lastName`, `photoUrl`) holds the non-deleted employees assigned through `service_employees` (`INACTIVE` ones included), by name. They cost two lookups per page: `findEmployeeIdsByService`, then the employee module's `EmployeeQueryUseCase.findSummaries` (`ServiceEmployeeQueryModuleAdapter`, ADR-002). `photoUrl` is always `null` until E03 adds employee photos.
+- Service activation (HU-11). `PATCH /api/services/{id}/status` switches a service between `ACTIVE` and `INACTIVE` and returns `{id, status}` (`ServiceStatusResponse`).
+  - The body's `status` only accepts `ACTIVE` or `INACTIVE`; `DELETED` (that's HU-14) or anything else gives 400 with `errors.status`.
+  - Unknown, foreign or deleted services give 404 (`ResourceNotFoundException`). Sending the current status is a no-op: nothing is saved and `updatedAt` stays.
+  - Employee assignments and Firestore are not touched, and there is no warning about future appointments in F1 (that belongs to F2, ADR-001). An `INACTIVE` service simply drops out of `BookableServicesQueryPort.findBookableIds`, which returns only `ACTIVE` services, for F2.
 - Sessions (HU-02). Access tokens last 15 min (`JWT_EXPIRATION`) and refresh tokens 7 days (`JWT_REFRESH_EXPIRATION`).
   - Login, and every refresh, goes through `SessionTokensIssuer`, which issues an access token plus an opaque refresh token (256 random bits).
   - Only the token's SHA-256 is stored, in `refresh_tokens`. It's looked up by that hash, so it is deliberately not BCrypt.

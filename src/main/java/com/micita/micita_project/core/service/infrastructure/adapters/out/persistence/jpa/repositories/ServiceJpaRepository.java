@@ -1,6 +1,7 @@
 package com.micita.micita_project.core.service.infrastructure.adapters.out.persistence.jpa.repositories;
 
 import java.util.Collection;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -19,5 +20,10 @@ public interface ServiceJpaRepository extends JpaRepository<ServiceEntity, UUID>
 	@Query("select count(s) > 0 from ServiceEntity s where s.businessId = :businessId "
 			+ "and lower(s.name) = lower(:name) and s.status <> :excluded")
 	boolean existsByName(UUID businessId, String name, ServiceStatus excluded);
+
+	Optional<ServiceEntity> findByIdAndBusinessIdAndStatusNot(UUID id, UUID businessId, ServiceStatus excluded);
+
+	@Query("select s.id from ServiceEntity s where s.businessId = :businessId and s.id in :ids and s.status = :status")
+	Set<UUID> findIdsOfBusinessWithStatus(UUID businessId, Collection<UUID> ids, ServiceStatus status);
 
 }

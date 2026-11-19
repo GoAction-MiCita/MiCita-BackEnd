@@ -5,10 +5,13 @@ import java.util.UUID;
 
 import com.micita.micita_project.common.shared.pagination.PageResponse;
 import com.micita.micita_project.common.shared.security.CurrentUserId;
+import com.micita.micita_project.core.service.application.dto.request.ChangeServiceStatusRequest;
 import com.micita.micita_project.core.service.application.dto.request.CreateServiceRequest;
 import com.micita.micita_project.core.service.application.dto.request.ServiceListFilter;
 import com.micita.micita_project.core.service.application.dto.response.ServiceListItemResponse;
 import com.micita.micita_project.core.service.application.dto.response.ServiceResponse;
+import com.micita.micita_project.core.service.application.dto.response.ServiceStatusResponse;
+import com.micita.micita_project.core.service.application.ports.in.ChangeServiceStatusUseCase;
 import com.micita.micita_project.core.service.application.ports.in.CreateServiceUseCase;
 import com.micita.micita_project.core.service.application.ports.in.ListServicesUseCase;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,6 +28,8 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -41,6 +46,8 @@ public class ServiceController {
 	private final CreateServiceUseCase createServiceUseCase;
 
 	private final ListServicesUseCase listServicesUseCase;
+
+	private final ChangeServiceStatusUseCase changeServiceStatusUseCase;
 
 	@GetMapping
 	@Operation(summary = "List the services of the caller's business",
@@ -86,6 +93,26 @@ public class ServiceController {
 	public ServiceResponse create(@Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
 			@Valid @RequestBody CreateServiceRequest request) {
 		return createServiceUseCase.create(CurrentUserId.from(jwt), request);
+	}
+
+	@PatchMapping("/{id}/status")
+	@Operation(summary = "Activate or deactivate a service",
+			description = "Sets the status of a service of the caller's business to ACTIVE or INACTIVE. Sending the "
+					+ "current status changes nothing. Existing appointments are kept; inactive services can't be "
+					+ "booked. Deleting a service is a separate operation")
+	@ApiResponse(responseCode = "200", description = "Id and new status of the service")
+	@ApiResponse(responseCode = "400",
+			description = "status is missing or is not ACTIVE or INACTIVE (DELETED included), or the id is malformed "
+					+ "(errors map)",
+			content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+	@ApiResponse(responseCode = "401", description = "Missing, invalid or expired access token")
+	@ApiResponse(responseCode = "404",
+			description = "The service doesn't exist, belongs to another business or is deleted",
+			content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+	public ServiceStatusResponse changeStatus(@Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
+			@Parameter(description = "Service id") @PathVariable UUID id,
+			@Valid @RequestBody ChangeServiceStatusRequest request) {
+		return changeServiceStatusUseCase.changeStatus(CurrentUserId.from(jwt), id, request);
 	}
 
 }

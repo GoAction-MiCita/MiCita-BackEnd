@@ -16,4 +16,12 @@ public record Service(UUID id, UUID businessId, String name, String description,
 		return new Service(null, businessId, name, description, durationMinutes, price, status, now, now);
 	}
 
+	/**
+	 * @return a copy with {@code status} and {@code updatedAt} changed; everything else, including the id
+	 * and the creation time, is kept
+	 */
+	public Service withStatus(ServiceStatus status, Instant now) {
+		return new Service(id, businessId, name, description, durationMinutes, price, status, createdAt, now);
+	}
+
 }

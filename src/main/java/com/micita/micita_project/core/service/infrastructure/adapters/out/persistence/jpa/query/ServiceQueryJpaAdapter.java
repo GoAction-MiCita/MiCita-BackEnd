@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -43,6 +44,17 @@ public class ServiceQueryJpaAdapter implements ServiceQueryRepositoryPort {
 	@Override
 	public boolean existsByName(UUID businessId, String name) {
 		return serviceJpaRepository.existsByName(businessId, name, ServiceStatus.DELETED);
+	}
+
+	@Override
+	public Optional<Service> findOfBusiness(UUID businessId, UUID serviceId) {
+		return serviceJpaRepository.findByIdAndBusinessIdAndStatusNot(serviceId, businessId, ServiceStatus.DELETED)
+			.map(serviceBDMapper::toDomain);
+	}
+
+	@Override
+	public Set<UUID> findBookableIds(UUID businessId, Collection<UUID> serviceIds) {
+		return serviceJpaRepository.findIdsOfBusinessWithStatus(businessId, serviceIds, ServiceStatus.ACTIVE);
 	}
 
 	@Override
