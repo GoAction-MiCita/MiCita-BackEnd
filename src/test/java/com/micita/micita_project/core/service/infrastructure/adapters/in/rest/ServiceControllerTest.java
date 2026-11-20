@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -11,6 +12,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -34,9 +36,11 @@ import com.micita.micita_project.core.service.application.dto.response.ServiceRe
 import com.micita.micita_project.core.service.application.dto.response.ServiceStatusResponse;
 import com.micita.micita_project.core.service.application.ports.in.ChangeServiceStatusUseCase;
 import com.micita.micita_project.core.service.application.ports.in.CreateServiceUseCase;
+import com.micita.micita_project.core.service.application.ports.in.DeleteServiceUseCase;
 import com.micita.micita_project.core.service.application.ports.in.ListServicesUseCase;
 import com.micita.micita_project.core.service.domain.exceptions.DuplicateServiceException;
 import com.micita.micita_project.core.service.domain.exceptions.InvalidEmployeeIdsException;
+import com.micita.micita_project.core.service.domain.exceptions.ServiceHasFutureAppointmentsException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -80,6 +84,9 @@ class ServiceControllerTest {
 
 	@MockitoBean
 	private ChangeServiceStatusUseCase changeServiceStatusUseCase;
+
+	@MockitoBean
+	private DeleteServiceUseCase deleteServiceUseCase;
 
 	@MockitoBean
 	private BusinessOwnershipQueryUseCase businessOwnershipQuery;
@@ -356,6 +363,58 @@ class ServiceControllerTest {
 			.andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.code").value("BUSINESS_REQUIRED"));
 		verifyNoInteractions(listServicesUseCase);
+	}
+
+	// HU-14: PUT /api/services/{id}/delete
+
+	@Test
+	void deleteReturnsNoContentForTheCallersBusiness() throws Exception {
+		mockMvc.perform(put("/api/services/" + SERVICE_ID + "/delete").with(userJwt()))
+			.andExpect(status().isNoContent());
+		verify(deleteServiceUseCase).delete(USER_ID, SERVICE_ID);
+	}
+
+	@Test
+	void deleteOfUnknownServiceIsNotFound() throws Exception {
+		doThrow(new ResourceNotFoundException("Service not found")).when(deleteServiceUseCase)
+			.delete(USER_ID, SERVICE_ID);
+
+		mockMvc.perform(put("/api/services/" + SERVICE_ID + "/delete").with(userJwt()))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.detail").value("Service not found"));
+	}
+
+	@Test
+	void deleteWithFutureAppointmentsIsConflictWithTheCount() throws Exception {
+		doThrow(new ServiceHasFutureAppointmentsException(3)).when(deleteServiceUseCase).delete(USER_ID, SERVICE_ID);
+
+		mockMvc.perform(put("/api/services/" + SERVICE_ID + "/delete").with(userJwt()))
+			.andExpect(status().isConflict())
+			.andExpect(jsonPath("$.futureAppointments").value(3));
+	}
+
+	@Test
+	void deleteWithMalformedIdIsBadRequest() throws Exception {
+		mockMvc.perform(put("/api/services/not-a-uuid/delete").with(userJwt()))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors.id").exists());
+		verifyNoInteractions(deleteServiceUseCase);
+	}
+
+	@Test
+	void deleteWithoutTokenIsUnauthorized() throws Exception {
+		mockMvc.perform(put("/api/services/" + SERVICE_ID + "/delete")).andExpect(status().isUnauthorized());
+		verifyNoInteractions(deleteServiceUseCase);
+	}
+
+	@Test
+	void deleteForUserWithoutBusinessIsForbidden() throws Exception {
+		given(businessOwnershipQuery.ownsBusiness(USER_ID)).willReturn(false);
+
+		mockMvc.perform(put("/api/services/" + SERVICE_ID + "/delete").with(userJwt()))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("BUSINESS_REQUIRED"));
+		verifyNoInteractions(deleteServiceUseCase);
 	}
 
 	private static MockHttpServletRequestBuilder create(String body) {

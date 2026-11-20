@@ -13,6 +13,7 @@ import com.micita.micita_project.core.service.application.dto.response.ServiceRe
 import com.micita.micita_project.core.service.application.dto.response.ServiceStatusResponse;
 import com.micita.micita_project.core.service.application.ports.in.ChangeServiceStatusUseCase;
 import com.micita.micita_project.core.service.application.ports.in.CreateServiceUseCase;
+import com.micita.micita_project.core.service.application.ports.in.DeleteServiceUseCase;
 import com.micita.micita_project.core.service.application.ports.in.ListServicesUseCase;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -31,6 +32,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -48,6 +50,8 @@ public class ServiceController {
 	private final ListServicesUseCase listServicesUseCase;
 
 	private final ChangeServiceStatusUseCase changeServiceStatusUseCase;
+
+	private final DeleteServiceUseCase deleteServiceUseCase;
 
 	@GetMapping
 	@Operation(summary = "List the services of the caller's business",
@@ -113,6 +117,28 @@ public class ServiceController {
 			@Parameter(description = "Service id") @PathVariable UUID id,
 			@Valid @RequestBody ChangeServiceStatusRequest request) {
 		return changeServiceStatusUseCase.changeStatus(CurrentUserId.from(jwt), id, request);
+	}
+
+	@PutMapping("/{id}/delete")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	@Operation(summary = "Delete a service",
+			description = "Soft delete: the service becomes DELETED and is kept, together with its employee "
+					+ "assignments, because past appointments reference it. It then drops out of every listing, "
+					+ "can't be booked, and its name can be reused. Services with future appointments can't be "
+					+ "deleted; deactivate them instead")
+	@ApiResponse(responseCode = "204", description = "Service deleted")
+	@ApiResponse(responseCode = "400", description = "The id is malformed (errors map)",
+			content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+	@ApiResponse(responseCode = "401", description = "Missing, invalid or expired access token")
+	@ApiResponse(responseCode = "404",
+			description = "The service doesn't exist, belongs to another business or is already deleted",
+			content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+	@ApiResponse(responseCode = "409",
+			description = "The service has future appointments (count in futureAppointments)",
+			content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+	public void delete(@Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
+			@Parameter(description = "Service id") @PathVariable UUID id) {
+		deleteServiceUseCase.delete(CurrentUserId.from(jwt), id);
 	}
 
 }

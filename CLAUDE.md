@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project state
 
-MiCita backend: the Spring Boot REST API for an appointment-booking product. Cross-cutting infrastructure is in place: hexagonal package layout, JWT login, error handling, Swagger, profiles, and test/coverage tooling. Implemented modules: `auth` (HU-01, HU-02), `business` (onboarding, HU-03/HU-04) and `employee` (registration, listing, filters, activation, detail/edit and soft delete, HU-17/HU-16/HU-22/HU-20/HU-18/HU-21). `service` has the `services` table, the `service_employees` association (ADR-002), service registration (HU-09), the listing (HU-08), its filters (HU-13) and activation (HU-11); its other endpoints (HU-12 and the rest of E02) are pending.
+MiCita backend: the Spring Boot REST API for an appointment-booking product. Cross-cutting infrastructure is in place: hexagonal package layout, JWT login, error handling, Swagger, profiles, and test/coverage tooling. Implemented modules: `auth` (HU-01, HU-02), `business` (onboarding, HU-03/HU-04) and `employee` (registration, listing, filters, activation, detail/edit and soft delete, HU-17/HU-16/HU-22/HU-20/HU-18/HU-21). `service` has the `services` table, the `service_employees` association (ADR-002), service registration (HU-09), the listing (HU-08), its filters (HU-13), activation (HU-11) and soft delete (HU-14); its other endpoints (HU-12 and the rest of E02) are pending.
 
 
 ## Stack
@@ -185,6 +185,10 @@ Implemented today:
   - The body's `status` only accepts `ACTIVE` or `INACTIVE`; `DELETED` (that's HU-14) or anything else gives 400 with `errors.status`.
   - Unknown, foreign or deleted services give 404 (`ResourceNotFoundException`). Sending the current status is a no-op: nothing is saved and `updatedAt` stays.
   - Employee assignments and Firestore are not touched, and there is no warning about future appointments in F1 (that belongs to F2, ADR-001). An `INACTIVE` service simply drops out of `BookableServicesQueryPort.findBookableIds`, which returns only `ACTIVE` services, for F2.
+- Service delete (HU-14). `PUT /api/services/{id}/delete` (same route style as HU-21, chosen over `DELETE /api/services/{id}`) is a soft delete: 204, the status becomes `DELETED`, and the row and its `service_employees` rows are kept. Every query already leaves deleted services out, so they drop out of listings and `findBookableIds`, a second delete gives 404, and their name can be reused.
+  - Unknown, foreign or already deleted services give 404 (`ResourceNotFoundException`).
+  - Services with future appointments give 409 with a `futureAppointments` count (`ServiceHasFutureAppointmentsException`). The count comes from the service module's own `FutureAppointmentsQueryPort`; in F1 `NoFutureServiceAppointmentsAdapter` always answers 0, and F2 replaces it with the Firestore adapter. The check and the update are not one transaction (ADR-001).
+  - There is no `GET /api/services/{id}` yet (HU-12), so the "detail gives 404" criterion shows up as the 404 on a repeated delete.
 - Sessions (HU-02). Access tokens last 15 min (`JWT_EXPIRATION`) and refresh tokens 7 days (`JWT_REFRESH_EXPIRATION`).
   - Login, and every refresh, goes through `SessionTokensIssuer`, which issues an access token plus an opaque refresh token (256 random bits).
   - Only the token's SHA-256 is stored, in `refresh_tokens`. It's looked up by that hash, so it is deliberately not BCrypt.
