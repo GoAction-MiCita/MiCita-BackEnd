@@ -8,6 +8,9 @@ import com.micita.micita_project.common.shared.security.CurrentUserId;
 import com.micita.micita_project.core.service.application.dto.request.ChangeServiceStatusRequest;
 import com.micita.micita_project.core.service.application.dto.request.CreateServiceRequest;
 import com.micita.micita_project.core.service.application.dto.request.ServiceListFilter;
+import com.micita.micita_project.core.service.application.dto.request.ReplaceServiceEmployeesRequest;
+import com.micita.micita_project.core.service.application.dto.response.ServiceEmployeesResponse;
+import com.micita.micita_project.core.service.application.ports.in.ReplaceServiceEmployeesUseCase;
 import com.micita.micita_project.core.service.application.dto.response.ServiceListItemResponse;
 import com.micita.micita_project.core.service.application.dto.response.ServiceResponse;
 import com.micita.micita_project.core.service.application.dto.response.ServiceStatusResponse;
@@ -52,6 +55,8 @@ public class ServiceController {
 	private final ChangeServiceStatusUseCase changeServiceStatusUseCase;
 
 	private final DeleteServiceUseCase deleteServiceUseCase;
+
+	private final ReplaceServiceEmployeesUseCase replaceServiceEmployeesUseCase;
 
 	@GetMapping
 	@Operation(summary = "List the services of the caller's business",
@@ -117,6 +122,26 @@ public class ServiceController {
 			@Parameter(description = "Service id") @PathVariable UUID id,
 			@Valid @RequestBody ChangeServiceStatusRequest request) {
 		return changeServiceStatusUseCase.changeStatus(CurrentUserId.from(jwt), id, request);
+	}
+
+	@PutMapping("/{id}/employees")
+	@Operation(summary = "Replace the employees of a service",
+			description = "The employees that provide the service become exactly employeeIds: an empty list removes "
+					+ "all of them and repeated ids count once. ACTIVE and INACTIVE employees can be assigned; "
+					+ "unknown, deleted or foreign ones reject the whole request and nothing changes")
+	@ApiResponse(responseCode = "200", description = "Id of the service and the employees now assigned")
+	@ApiResponse(responseCode = "400",
+			description = "employeeIds is missing or has a malformed id, or the service id is malformed (errors map); "
+					+ "or employeeIds has unknown, deleted or foreign employees (listed in rejectedIds)",
+			content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+	@ApiResponse(responseCode = "401", description = "Missing, invalid or expired access token")
+	@ApiResponse(responseCode = "404",
+			description = "The service doesn't exist, belongs to another business or is deleted",
+			content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+	public ServiceEmployeesResponse replaceEmployees(@Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
+			@Parameter(description = "Service id") @PathVariable UUID id,
+			@Valid @RequestBody ReplaceServiceEmployeesRequest request) {
+		return replaceServiceEmployeesUseCase.replaceEmployees(CurrentUserId.from(jwt), id, request);
 	}
 
 	@PutMapping("/{id}/delete")
