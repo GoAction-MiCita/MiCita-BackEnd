@@ -356,6 +356,27 @@ class ServiceControllerTest {
 	}
 
 	@Test
+	void nonNumericPagingIsBadRequestWithoutCallingTheUseCase() throws Exception {
+		mockMvc.perform(get("/api/services").param("size", "abc").with(userJwt()))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors.size").exists());
+		mockMvc.perform(get("/api/services").param("page", "1.5").with(userJwt()))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors.page").exists());
+		verifyNoInteractions(listServicesUseCase);
+	}
+
+	@Test
+	void sizeZeroIsBadRequestWithTheSizeError() throws Exception {
+		given(listServicesUseCase.list(USER_ID, ServiceListFilter.none(), 0, 0))
+			.willThrow(new InvalidPageRequestException(Map.of("size", "must be between 1 and 50")));
+
+		mockMvc.perform(get("/api/services").param("size", "0").with(userJwt()))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors.size").exists());
+	}
+
+	@Test
 	void listWithoutTokenIsUnauthorized() throws Exception {
 		mockMvc.perform(get("/api/services")).andExpect(status().isUnauthorized());
 		verifyNoInteractions(listServicesUseCase);

@@ -76,6 +76,20 @@ class ServiceQueryJpaAdapterTest {
 	}
 
 	@Test
+	void pageBeyondTheLastMapsToEmptyContentWithTheRealTotals() {
+		given(serviceJpaRepository.findAll(any(Specification.class), any(Pageable.class)))
+			.willReturn(new PageImpl<>(List.of(), PageRequest.of(5, 2), 3));
+
+		PageResponse<Service> page = adapter.findPageOfBusiness(UUID.randomUUID(), ServiceCriteria.none(), 5, 2);
+
+		assertThat(page.content()).isEmpty();
+		assertThat(page.page()).isEqualTo(5);
+		assertThat(page.size()).isEqualTo(2);
+		assertThat(page.totalElements()).isEqualTo(3);
+		assertThat(page.totalPages()).isEqualTo(2);
+	}
+
+	@Test
 	void findOfBusinessExcludesDeletedServices() {
 		UUID businessId = UUID.randomUUID();
 		UUID serviceId = UUID.randomUUID();

@@ -1,5 +1,6 @@
 package com.micita.micita_project.core.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -7,6 +8,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import com.jayway.jsonpath.JsonPath;
@@ -301,6 +306,91 @@ class ServiceListingIntegrationTest {
 		list(owner, "?page=-1&size=51").andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.errors.page").exists())
 			.andExpect(jsonPath("$.errors.size").exists());
+	}
+
+	@Test
+	void withoutPageAndSizeTheDefaultsAreZeroAndTen() throws Exception {
+		Owner owner = ownerWithBusiness();
+		for (int i = 0; i < 11; i++) {
+			service(owner.businessId(), String.format("Servicio %02d", i), ServiceStatus.ACTIVE);
+		}
+
+		list(owner, "").andExpect(status().isOk())
+			.andExpect(jsonPath("$.page").value(0))
+			.andExpect(jsonPath("$.size").value(10))
+			.andExpect(jsonPath("$.content.length()").value(10))
+			.andExpect(jsonPath("$.totalElements").value(11))
+			.andExpect(jsonPath("$.totalPages").value(2));
+	}
+
+	@Test
+	void sizeLimitsAreOneAndFifty() throws Exception {
+		Owner owner = ownerWithBusiness();
+		service(owner.businessId(), "Corte", ServiceStatus.ACTIVE);
+		service(owner.businessId(), "Barba", ServiceStatus.ACTIVE);
+
+		list(owner, "?size=1").andExpect(status().isOk())
+			.andExpect(jsonPath("$.content.length()").value(1))
+			.andExpect(jsonPath("$.totalPages").value(2));
+		list(owner, "?size=50").andExpect(status().isOk()).andExpect(jsonPath("$.size").value(50));
+		list(owner, "?size=0").andExpect(status().isBadRequest()).andExpect(jsonPath("$.errors.size").exists());
+		list(owner, "?size=51").andExpect(status().isBadRequest()).andExpect(jsonPath("$.errors.size").exists());
+		list(owner, "?page=-1").andExpect(status().isBadRequest()).andExpect(jsonPath("$.errors.page").exists());
+	}
+
+	@Test
+	void nonNumericPagingIsBadRequest() throws Exception {
+		Owner owner = ownerWithBusiness();
+
+		list(owner, "?size=abc").andExpect(status().isBadRequest()).andExpect(jsonPath("$.errors.size").exists());
+		list(owner, "?page=abc").andExpect(status().isBadRequest()).andExpect(jsonPath("$.errors.page").exists());
+		list(owner, "?size=1.5").andExpect(status().isBadRequest()).andExpect(jsonPath("$.errors.size").exists());
+		list(owner, "?page=1e1").andExpect(status().isBadRequest()).andExpect(jsonPath("$.errors.page").exists());
+	}
+
+	@Test
+	void pageBeyondTheLastGivesEmptyContentWithCorrectTotals() throws Exception {
+		Owner owner = ownerWithBusiness();
+		service(owner.businessId(), "Alfa", ServiceStatus.ACTIVE);
+		service(owner.businessId(), "Beta", ServiceStatus.ACTIVE);
+		service(owner.businessId(), "Gamma", ServiceStatus.ACTIVE);
+
+		list(owner, "?page=5&size=2").andExpect(status().isOk())
+			.andExpect(jsonPath("$.content.length()").value(0))
+			.andExpect(jsonPath("$.page").value(5))
+			.andExpect(jsonPath("$.size").value(2))
+			.andExpect(jsonPath("$.totalElements").value(3))
+			.andExpect(jsonPath("$.totalPages").value(2));
+	}
+
+	@Test
+	void sameNameServicesKeepAStableOrderAcrossPages() throws Exception {
+		Owner owner = ownerWithBusiness();
+		Set<UUID> created = new HashSet<>();
+		for (int i = 0; i < 5; i++) {
+			// Same name ignoring case: only the id breaks the tie.
+			created.add(service(owner.businessId(), i % 2 == 0 ? "Corte" : "corte", ServiceStatus.ACTIVE));
+		}
+
+		List<String> seen = new ArrayList<>();
+		for (int page = 0; page < 3; page++) {
+			String body = list(owner, "?page=" + page + "&size=2").andExpect(status().isOk())
+				.andReturn()
+				.getResponse()
+				.getContentAsString();
+			seen.addAll(JsonPath.<List<String>>read(body, "$.content[*].id"));
+		}
+
+		assertThat(seen).hasSize(5).doesNotHaveDuplicates();
+		assertThat(seen).containsExactlyInAnyOrderElementsOf(created.stream().map(UUID::toString).toList());
+		assertThat(seen.subList(0, 2)).isSubsetOf(created.stream().map(UUID::toString).toList());
+		// Asking again yields the same sequence.
+		List<String> again = new ArrayList<>();
+		for (int page = 0; page < 3; page++) {
+			String body = list(owner, "?page=" + page + "&size=2").andReturn().getResponse().getContentAsString();
+			again.addAll(JsonPath.<List<String>>read(body, "$.content[*].id"));
+		}
+		assertThat(again).isEqualTo(seen);
 	}
 
 	@Test
