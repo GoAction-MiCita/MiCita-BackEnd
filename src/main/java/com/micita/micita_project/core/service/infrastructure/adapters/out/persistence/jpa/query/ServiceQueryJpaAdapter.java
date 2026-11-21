@@ -47,6 +47,11 @@ public class ServiceQueryJpaAdapter implements ServiceQueryRepositoryPort {
 	}
 
 	@Override
+	public boolean existsByNameExcept(UUID businessId, String name, UUID excludedServiceId) {
+		return serviceJpaRepository.existsByNameExcept(businessId, name, ServiceStatus.DELETED, excludedServiceId);
+	}
+
+	@Override
 	public Optional<Service> findOfBusiness(UUID businessId, UUID serviceId) {
 		return serviceJpaRepository.findByIdAndBusinessIdAndStatusNot(serviceId, businessId, ServiceStatus.DELETED)
 			.map(serviceBDMapper::toDomain);

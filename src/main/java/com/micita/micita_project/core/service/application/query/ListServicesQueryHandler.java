@@ -38,7 +38,7 @@ public class ListServicesQueryHandler implements ListServicesUseCase {
 	private static final Set<String> FILTERABLE_STATUSES = Set.of(ServiceStatus.ACTIVE.name(),
 			ServiceStatus.INACTIVE.name());
 
-	private static final Comparator<ServiceEmployee> BY_NAME = Comparator
+	static final Comparator<ServiceEmployee> BY_NAME = Comparator
 		.comparing((ServiceEmployee employee) -> employee.firstName().toLowerCase())
 		.thenComparing(employee -> employee.lastName().toLowerCase())
 		.thenComparing(ServiceEmployee::id);

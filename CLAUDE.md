@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project state
 
-MiCita backend: the Spring Boot REST API for an appointment-booking product. Cross-cutting infrastructure is in place: hexagonal package layout, JWT login, error handling, Swagger, profiles, and test/coverage tooling. Implemented modules: `auth` (HU-01, HU-02), `business` (onboarding, HU-03/HU-04) and `employee` (registration, listing, filters, activation, detail/edit and soft delete, HU-17/HU-16/HU-22/HU-20/HU-18/HU-21). `service` has the `services` table, the `service_employees` association (ADR-002), service registration (HU-09), the listing (HU-08), its filters (HU-13), activation (HU-11), soft delete (HU-14) and employee assignment (HU-12); the rest of E02 is pending.
+MiCita backend: the Spring Boot REST API for an appointment-booking product. Cross-cutting infrastructure is in place: hexagonal package layout, JWT login, error handling, Swagger, profiles, and test/coverage tooling. Implemented modules: `auth` (HU-01, HU-02), `business` (onboarding, HU-03/HU-04) and `employee` (registration, listing, filters, activation, detail/edit and soft delete, HU-17/HU-16/HU-22/HU-20/HU-18/HU-21). `service` has the `services` table, the `service_employees` association (ADR-002), service registration (HU-09), the listing (HU-08), its filters (HU-13), activation (HU-11), soft delete (HU-14), employee assignment (HU-12) and detail/edit (HU-10); the rest of E02 is pending.
 
 
 ## Stack
@@ -193,6 +193,11 @@ Implemented today:
   - `employeeIds` is required: `[]` removes every employee, but a missing or `null` list gives 400 with `errors.employeeIds` so a bad body can't wipe the assignments (unlike `PUT /api/employees/{id}`, where leaving `serviceIds` out keeps them).
   - `ReplaceServiceEmployeesCommandHandler` resolves the business from the token, gives 404 (`ResourceNotFoundException`) for unknown, foreign or deleted services, and delegates to `AssignServiceEmployeesUseCase`, so the validation is the one of HU-09: unknown, foreign or `DELETED` employees give 400 with `rejectedIds` and the previous assignment is kept; `INACTIVE` ones are accepted. The service row (status, `updatedAt`) is not touched.
   - No separate `ServiceEmployeesQueryPort` for F2: `ServiceEmployeeQueryRepositoryPort` already answers those lookups.
+- Service detail and edit (HU-10). `GET /api/services/{id}` returns a `ServiceDetailResponse`: the service, its non-deleted `employees` (`id`, `firstName`, `lastName`, `photoUrl`, by name, `INACTIVE` ones included), `createdAt` and `updatedAt`. Unknown, foreign or deleted services give 404 (`ResourceNotFoundException`). It resolves employees with `findEmployeeIdsByService` plus the employee module's `findEmployees`, as the listing does.
+  - `PUT /api/services/{id}` replaces the service's data, status included (`ACTIVE`/`INACTIVE`), with the HU-09 rules (`UpdateServiceRequest`), and returns a `ServiceResponse`. Optional fields left out are cleared. `updatedAt` changes; id and `createdAt` don't.
+  - The name check ignores the service itself (`existsByNameExcept`), so keeping its own name is not a 409; another non-deleted service of the business with that name (ignoring case) is.
+  - `employeeIds` is **required** and replaces the whole assignment through `AssignServiceEmployeesUseCase`, like HU-12: `[]` removes every employee, and a missing or `null` list gives 400 with `errors.employeeIds` (unlike `PUT /api/employees/{id}`, where leaving `serviceIds` out keeps them). Unknown, foreign or `DELETED` employees give 400 with `rejectedIds` and the whole edit rolls back (`UpdateServiceCommandHandler` is one transaction); `INACTIVE` ones are accepted.
+  - No optimistic locking in the MVP: the last write wins.
 - Sessions (HU-02). Access tokens last 15 min (`JWT_EXPIRATION`) and refresh tokens 7 days (`JWT_REFRESH_EXPIRATION`).
   - Login, and every refresh, goes through `SessionTokensIssuer`, which issues an access token plus an opaque refresh token (256 random bits).
   - Only the token's SHA-256 is stored, in `refresh_tokens`. It's looked up by that hash, so it is deliberately not BCrypt.

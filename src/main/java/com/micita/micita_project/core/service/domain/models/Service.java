@@ -24,4 +24,13 @@ public record Service(UUID id, UUID businessId, String name, String description,
 		return new Service(id, businessId, name, description, durationMinutes, price, status, createdAt, now);
 	}
 
+	/**
+	 * @return a copy with the editable data and {@code updatedAt} changed; the id, the business and the
+	 * creation time are kept
+	 */
+	public Service withDetails(String name, String description, Integer durationMinutes, BigDecimal price,
+			ServiceStatus status, Instant now) {
+		return new Service(id, businessId, name, description, durationMinutes, price, status, createdAt, now);
+	}
+
 }

@@ -221,4 +221,15 @@ class ServiceQueryJpaAdapterTest {
 		assertThat(adapter.existsByName(businessId, "Otro")).isFalse();
 	}
 
+	@Test
+	void nameLookupExcludingAServiceSkipsDeletedServicesAndThatService() {
+		UUID businessId = UUID.randomUUID();
+		UUID serviceId = UUID.randomUUID();
+		given(serviceJpaRepository.existsByNameExcept(businessId, "Corte", ServiceStatus.DELETED, serviceId))
+			.willReturn(true);
+
+		assertThat(adapter.existsByNameExcept(businessId, "Corte", serviceId)).isTrue();
+		assertThat(adapter.existsByNameExcept(businessId, "Otro", serviceId)).isFalse();
+	}
+
 }

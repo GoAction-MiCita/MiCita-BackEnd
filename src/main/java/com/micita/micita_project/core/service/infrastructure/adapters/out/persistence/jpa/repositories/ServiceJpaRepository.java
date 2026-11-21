@@ -21,6 +21,10 @@ public interface ServiceJpaRepository extends JpaRepository<ServiceEntity, UUID>
 			+ "and lower(s.name) = lower(:name) and s.status <> :excluded")
 	boolean existsByName(UUID businessId, String name, ServiceStatus excluded);
 
+	@Query("select count(s) > 0 from ServiceEntity s where s.businessId = :businessId "
+			+ "and lower(s.name) = lower(:name) and s.status <> :excluded and s.id <> :excludedId")
+	boolean existsByNameExcept(UUID businessId, String name, ServiceStatus excluded, UUID excludedId);
+
 	Optional<ServiceEntity> findByIdAndBusinessIdAndStatusNot(UUID id, UUID businessId, ServiceStatus excluded);
 
 	@Query("select s.id from ServiceEntity s where s.businessId = :businessId and s.id in :ids and s.status = :status")

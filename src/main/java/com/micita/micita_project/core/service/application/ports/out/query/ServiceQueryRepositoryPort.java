@@ -22,6 +22,12 @@ public interface ServiceQueryRepositoryPort {
 	boolean existsByName(UUID businessId, String name);
 
 	/**
+	 * @return whether a non-deleted service of the business other than {@code excludedServiceId} already has
+	 * {@code name}, ignoring case
+	 */
+	boolean existsByNameExcept(UUID businessId, String name, UUID excludedServiceId);
+
+	/**
 	 * Services of the business that are not deleted and match {@code criteria}, by name ignoring case (then
 	 * by id). The page totals count only the matching services.
 	 */

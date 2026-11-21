@@ -30,6 +30,10 @@ import com.micita.micita_project.core.business.application.ports.in.BusinessOwne
 import com.micita.micita_project.core.service.application.dto.request.ChangeServiceStatusRequest;
 import com.micita.micita_project.core.service.application.dto.request.CreateServiceRequest;
 import com.micita.micita_project.core.service.application.dto.request.ServiceListFilter;
+import com.micita.micita_project.core.service.application.dto.request.UpdateServiceRequest;
+import com.micita.micita_project.core.service.application.dto.response.ServiceDetailResponse;
+import com.micita.micita_project.core.service.application.ports.in.GetServiceUseCase;
+import com.micita.micita_project.core.service.application.ports.in.UpdateServiceUseCase;
 import com.micita.micita_project.core.service.application.dto.request.ReplaceServiceEmployeesRequest;
 import com.micita.micita_project.core.service.application.dto.response.ServiceEmployeesResponse;
 import com.micita.micita_project.core.service.application.ports.in.ReplaceServiceEmployeesUseCase;
@@ -93,6 +97,12 @@ class ServiceControllerTest {
 
 	@MockitoBean
 	private ReplaceServiceEmployeesUseCase replaceServiceEmployeesUseCase;
+
+	@MockitoBean
+	private GetServiceUseCase getServiceUseCase;
+
+	@MockitoBean
+	private UpdateServiceUseCase updateServiceUseCase;
 
 	@MockitoBean
 	private BusinessOwnershipQueryUseCase businessOwnershipQuery;
@@ -524,6 +534,142 @@ class ServiceControllerTest {
 			.andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.code").value("BUSINESS_REQUIRED"));
 		verifyNoInteractions(replaceServiceEmployeesUseCase);
+	}
+
+	// ---- HU-10 ----
+
+	private static final Instant CREATED = Instant.parse("2026-10-29T15:00:00Z");
+
+	@Test
+	void getReturnsTheServiceDetailWithItsEmployees() throws Exception {
+		given(getServiceUseCase.get(USER_ID, SERVICE_ID)).willReturn(new ServiceDetailResponse(SERVICE_ID, "Corte",
+				"Clásico", 45, new BigDecimal("35000.00"), "ACTIVE",
+				List.of(new ServiceEmployeeResponse(EMPLOYEE_ID, "Ana", "Ruiz", null)), CREATED, CREATED));
+
+		mockMvc.perform(get("/api/services/" + SERVICE_ID).with(userJwt()))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.id").value(SERVICE_ID.toString()))
+			.andExpect(jsonPath("$.name").value("Corte"))
+			.andExpect(jsonPath("$.employees[0].id").value(EMPLOYEE_ID.toString()))
+			.andExpect(jsonPath("$.employees[0].firstName").value("Ana"))
+			.andExpect(jsonPath("$.updatedAt").value("2026-10-29T15:00:00Z"));
+	}
+
+	@Test
+	void getOfUnknownServiceIsNotFound() throws Exception {
+		given(getServiceUseCase.get(USER_ID, SERVICE_ID)).willThrow(new ResourceNotFoundException("Service not found"));
+
+		mockMvc.perform(get("/api/services/" + SERVICE_ID).with(userJwt()))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.detail").value("Service not found"));
+	}
+
+	@Test
+	void getWithMalformedIdIsBadRequest() throws Exception {
+		mockMvc.perform(get("/api/services/not-a-uuid").with(userJwt()))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors.id").exists());
+		verifyNoInteractions(getServiceUseCase);
+	}
+
+	@Test
+	void getWithoutTokenIsUnauthorized() throws Exception {
+		mockMvc.perform(get("/api/services/" + SERVICE_ID)).andExpect(status().isUnauthorized());
+		verifyNoInteractions(getServiceUseCase);
+	}
+
+	@Test
+	void getWithoutBusinessIsForbidden() throws Exception {
+		given(businessOwnershipQuery.ownsBusiness(USER_ID)).willReturn(false);
+
+		mockMvc.perform(get("/api/services/" + SERVICE_ID).with(userJwt()))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("BUSINESS_REQUIRED"));
+		verifyNoInteractions(getServiceUseCase);
+	}
+
+	@Test
+	void updateReturnsTheUpdatedService() throws Exception {
+		given(updateServiceUseCase.update(eq(USER_ID), eq(SERVICE_ID), any())).willReturn(new ServiceResponse(
+				SERVICE_ID, "Corte", "Clásico", 45, new BigDecimal("35000.00"), "ACTIVE", List.of(EMPLOYEE_ID), CREATED));
+
+		mockMvc.perform(putService(SERVICE_ID.toString(), VALID_BODY).with(userJwt()))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.id").value(SERVICE_ID.toString()))
+			.andExpect(jsonPath("$.employeeIds[0]").value(EMPLOYEE_ID.toString()));
+		verify(updateServiceUseCase).update(USER_ID, SERVICE_ID, new UpdateServiceRequest("Corte", "Clásico", 45,
+				new BigDecimal("35000.00"), "ACTIVE", List.of(EMPLOYEE_ID)));
+	}
+
+	@Test
+	void updateAcceptsAnEmptyEmployeeList() throws Exception {
+		given(updateServiceUseCase.update(eq(USER_ID), eq(SERVICE_ID), any())).willReturn(new ServiceResponse(
+				SERVICE_ID, "Corte", null, null, null, "INACTIVE", List.of(), CREATED));
+
+		mockMvc.perform(putService(SERVICE_ID.toString(),
+				"{\"name\":\"Corte\",\"status\":\"INACTIVE\",\"employeeIds\":[]}").with(userJwt()))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.employeeIds.length()").value(0));
+	}
+
+	@Test
+	void updateWithInvalidOrMissingFieldsIsBadRequestWithAnErrorsMap() throws Exception {
+		mockMvc.perform(putService(SERVICE_ID.toString(), "{\"name\":\" \",\"status\":\"DELETED\"}").with(userJwt()))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors.name").exists())
+			.andExpect(jsonPath("$.errors.status").exists())
+			.andExpect(jsonPath("$.errors.employeeIds").exists());
+		verifyNoInteractions(updateServiceUseCase);
+	}
+
+	@Test
+	void updateWithoutEmployeeListIsBadRequest() throws Exception {
+		mockMvc.perform(putService(SERVICE_ID.toString(), "{\"name\":\"Corte\",\"status\":\"ACTIVE\"}").with(userJwt()))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors.employeeIds").exists());
+		verifyNoInteractions(updateServiceUseCase);
+	}
+
+	@Test
+	void updateWithRejectedEmployeesIsBadRequestWithTheirIds() throws Exception {
+		given(updateServiceUseCase.update(eq(USER_ID), eq(SERVICE_ID), any()))
+			.willThrow(new InvalidEmployeeIdsException(List.of(EMPLOYEE_ID)));
+
+		mockMvc.perform(putService(SERVICE_ID.toString(), VALID_BODY).with(userJwt()))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.rejectedIds[0]").value(EMPLOYEE_ID.toString()));
+	}
+
+	@Test
+	void updateWithADuplicatedNameIsConflict() throws Exception {
+		given(updateServiceUseCase.update(eq(USER_ID), eq(SERVICE_ID), any())).willThrow(new DuplicateServiceException());
+
+		mockMvc.perform(putService(SERVICE_ID.toString(), VALID_BODY).with(userJwt()))
+			.andExpect(status().isConflict());
+	}
+
+	@Test
+	void updateOfUnknownServiceIsNotFound() throws Exception {
+		given(updateServiceUseCase.update(eq(USER_ID), eq(SERVICE_ID), any()))
+			.willThrow(new ResourceNotFoundException("Service not found"));
+
+		mockMvc.perform(putService(SERVICE_ID.toString(), VALID_BODY).with(userJwt()))
+			.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void updateWithoutTokenIsUnauthorizedAndWithoutBusinessForbidden() throws Exception {
+		mockMvc.perform(putService(SERVICE_ID.toString(), VALID_BODY)).andExpect(status().isUnauthorized());
+
+		given(businessOwnershipQuery.ownsBusiness(USER_ID)).willReturn(false);
+		mockMvc.perform(putService(SERVICE_ID.toString(), VALID_BODY).with(userJwt()))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("BUSINESS_REQUIRED"));
+		verifyNoInteractions(updateServiceUseCase);
+	}
+
+	private static MockHttpServletRequestBuilder putService(String id, String body) {
+		return put("/api/services/" + id).contentType(MediaType.APPLICATION_JSON).content(body);
 	}
 
 	private static MockHttpServletRequestBuilder putEmployees(String id, String body) {

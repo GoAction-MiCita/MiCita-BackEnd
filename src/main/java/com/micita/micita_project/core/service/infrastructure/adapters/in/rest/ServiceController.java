@@ -8,6 +8,10 @@ import com.micita.micita_project.common.shared.security.CurrentUserId;
 import com.micita.micita_project.core.service.application.dto.request.ChangeServiceStatusRequest;
 import com.micita.micita_project.core.service.application.dto.request.CreateServiceRequest;
 import com.micita.micita_project.core.service.application.dto.request.ServiceListFilter;
+import com.micita.micita_project.core.service.application.dto.request.UpdateServiceRequest;
+import com.micita.micita_project.core.service.application.dto.response.ServiceDetailResponse;
+import com.micita.micita_project.core.service.application.ports.in.GetServiceUseCase;
+import com.micita.micita_project.core.service.application.ports.in.UpdateServiceUseCase;
 import com.micita.micita_project.core.service.application.dto.request.ReplaceServiceEmployeesRequest;
 import com.micita.micita_project.core.service.application.dto.response.ServiceEmployeesResponse;
 import com.micita.micita_project.core.service.application.ports.in.ReplaceServiceEmployeesUseCase;
@@ -58,6 +62,10 @@ public class ServiceController {
 
 	private final ReplaceServiceEmployeesUseCase replaceServiceEmployeesUseCase;
 
+	private final GetServiceUseCase getServiceUseCase;
+
+	private final UpdateServiceUseCase updateServiceUseCase;
+
 	@GetMapping
 	@Operation(summary = "List the services of the caller's business",
 			description = "Paginated, by name ascending (ignoring case). Deleted services and deleted employees are "
@@ -102,6 +110,46 @@ public class ServiceController {
 	public ServiceResponse create(@Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
 			@Valid @RequestBody CreateServiceRequest request) {
 		return createServiceUseCase.create(CurrentUserId.from(jwt), request);
+	}
+
+	@GetMapping("/{id}")
+	@Operation(summary = "Get a service",
+			description = "The detail of a service of the caller's business, ACTIVE or INACTIVE, with the "
+					+ "non-deleted employees that provide it, by name")
+	@ApiResponse(responseCode = "200", description = "The service and its employees")
+	@ApiResponse(responseCode = "400", description = "The id is malformed (errors map)",
+			content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+	@ApiResponse(responseCode = "401", description = "Missing, invalid or expired access token")
+	@ApiResponse(responseCode = "404",
+			description = "The service doesn't exist, belongs to another business or is deleted",
+			content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+	public ServiceDetailResponse get(@Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
+			@Parameter(description = "Service id") @PathVariable UUID id) {
+		return getServiceUseCase.get(CurrentUserId.from(jwt), id);
+	}
+
+	@PutMapping("/{id}")
+	@Operation(summary = "Edit a service",
+			description = "Replaces the data of a service of the caller's business, status included (ACTIVE or "
+					+ "INACTIVE), with the rules of the registration. employeeIds is required and replaces the "
+					+ "whole assignment: an empty list removes every employee. The name must not be used, ignoring "
+					+ "case, by another non-deleted service of the business; keeping its own is fine. Last write wins")
+	@ApiResponse(responseCode = "200", description = "The updated service")
+	@ApiResponse(responseCode = "400",
+			description = "Missing or invalid fields, including a missing employeeIds, or a malformed id (errors "
+					+ "map); or employeeIds with unknown, deleted or foreign employees (listed in rejectedIds), in "
+					+ "which case nothing changes",
+			content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+	@ApiResponse(responseCode = "401", description = "Missing, invalid or expired access token")
+	@ApiResponse(responseCode = "404",
+			description = "The service doesn't exist, belongs to another business or is deleted",
+			content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+	@ApiResponse(responseCode = "409", description = "Another service of the business uses the name",
+			content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+	public ServiceResponse update(@Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
+			@Parameter(description = "Service id") @PathVariable UUID id,
+			@Valid @RequestBody UpdateServiceRequest request) {
+		return updateServiceUseCase.update(CurrentUserId.from(jwt), id, request);
 	}
 
 	@PatchMapping("/{id}/status")
